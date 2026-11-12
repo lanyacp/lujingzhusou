@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui" onLoad="OnAddinLoad">
+    <ribbon startFromScratch="false">
+        <tabs>
+            <tab id="abpTab" label="路径助手">
+                <group id="abpGroupMain" label="精准路径">
+                    <button id="btnCreatePath" label="创建路径" size="large"
+                            getImage="GetImage" visible="true" onAction="OnAction"/>
+                    <button id="btnCenterCross" label="中心十字" size="large"
+                            getImage="GetImage" visible="true" onAction="OnAction"/>
+                    <button id="btnClean" label="清理标记" size="large"
+                            getImage="GetImage" visible="true" onAction="OnAction"/>
+                    <button id="btnHelp" label="使用帮助" size="large"
+                            getImage="GetImage" visible="true" onAction="OnAction"/>
+                </group>
+            </tab>
+        </tabs>
+    </ribbon>
+</customUI>

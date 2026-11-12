@@ -1,0 +1,9 @@
+{
+    "name": "ABPathHelper",
+    "addonType": "wpp",
+    "version": "1.3.2",
+    "description": "路径助手 — WPS 演示精准路径动画加载项",
+    "devDependencies": {
+        "wpp-jsapi-declare": "latest"
+    }
+}

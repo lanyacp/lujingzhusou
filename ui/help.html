@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>路径助手 · 使用帮助</title>
+<style>
+    body { font: 13px/1.7 "Microsoft YaHei", sans-serif; color: #333; padding: 14px; }
+    h2 { font-size: 15px; color: #2b6cb0; margin: 12px 0 6px; }
+    ol, ul { padding-left: 22px; }
+    li { margin: 4px 0; }
+    .tip { background: #eef4fb; border-radius: 6px; padding: 8px 10px; margin: 8px 0; font-size: 12px; color: #445; }
+    .red { color: #c0392b; }
+    .blue { color: #2b6cb0; }
+</style>
+</head>
+<body>
+    <h2>解决什么问题</h2>
+    <p>WPS/PPT 的路径动画以<b>图形中心</b>为锚点移动，但编辑时看不到中心点，手工拖路径很难让图形精确落到目标位置。本插件让你只指定"图形中心从 <span class="red">A</span> 移动到 <span class="blue">B</span>"，路径自动按中心精确生成。</p>
+
+    <h2>三步用法</h2>
+    <ol>
+        <li><b>选中要移动的图形</b> —— 任务窗格自动在其中心放置 <span class="red">红十字 A</span>，并在同一位置放一个可拖动的 <span class="blue">蓝十字 B</span>。</li>
+        <li><b>拖动蓝十字 B 到目标位置</b> —— 享受原生智能参考线/网格吸附；方向键微调，Ctrl+方向键 = 1 磅级微调；红色虚线为路径预览，坐标实时显示。</li>
+        <li>点 <b>「生成路径动画」</b> —— 完成。选中图形即可看到路径：<b>绿点=起点(图形中心)，红点=终点(B)</b>。</li>
+    </ol>
+
+    <div class="tip">要对准某个目标图形的中心？先用功能区或工具区的「<b>中心十字</b>」给目标图形加个红十字，再把 B 标记拖到十字上一致即可——两个十字中心重合 = 中心精确对齐。</div>
+
+    <h2>参数说明</h2>
+    <ul>
+        <li><b>时长</b>：动画持续时间（秒）。</li>
+        <li><b>触发</b>：单击时 / 与上一动画同时 / 上一动画之后。</li>
+        <li><b>平滑起止</b>：默认关闭（匀速直线）；开启后有缓入缓出。</li>
+        <li><b>替换该图形已有动画</b>：生成前先删除该图形在主时间线上的全部动画。</li>
+        <li><b>保留标记 / 自动开始</b>：生成后是否保留 A/B 标记；选中新图形是否自动开始新流程。</li>
+    </ul>
+
+    <h2>工具按钮</h2>
+    <ul>
+        <li><b>中心十字</b>：给选中图形（可多选）中心加/移除红十字。</li>
+        <li><b>清理本页标记</b>：删除本页所有辅助标记。</li>
+        <li><b>删除图形动画</b>：删除选中图形的全部动画。</li>
+        <li><b>API 诊断</b>：检测当前 WPS 版本对路径动画 API 的支持情况。</li>
+    </ul>
+
+    <h2>原理</h2>
+    <p>图形中心 A = (Left+Width/2, Top+Height/2)（磅）。路径动画的位移坐标以图形中心为原点、以幻灯片宽/高的百分比为单位，插件把 B−A 的位移归一化后直接写入 <code>MotionEffect.Path</code>（"M 0 0 L dx dy E"），因此终点精确落在 B，不做视觉估计。</p>
+
+    <p style="color:#999;margin-top:14px;font-size:12px;">若生成失败，请点「API 诊断」并把结果反馈给开发者。</p>
+</body>
+</html>

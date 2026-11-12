@@ -1,0 +1,29 @@
+# 私人工作区数据 —— 含个人信息、工作记录，绝不入库
+.workbuddy/
+.zcode/
+
+# 公众号内容资产与发布工具链（不属于插件代码，不开源）
+公众号文章-*
+公众号素材/
+路径助手-安装包-*.zip
+
+# 本机测试记录、中间产物
+tools/test-results/
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db
+
+# 凭据
+.wechat.env
+*.env
+!.env.example
+
+# 配图（公众号示意图 / 截图），不入库
+# 注：images/ 里的 SVG 是功能区按钮图标，属程序资源，保留
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp

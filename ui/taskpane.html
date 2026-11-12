@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>路径助手</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font: 13px/1.6 "Microsoft YaHei", "PingFang SC", sans-serif;
+        color: #333; background: #f5f6f8; padding: 10px;
+    }
+    #status {
+        padding: 6px 10px; border-radius: 6px; margin-bottom: 10px;
+        background: #eef1f5; color: #555; font-size: 12px; word-break: break-all;
+    }
+    #status.ok { background: #e6f4ea; color: #1c6b3c; }
+    #status.warn { background: #fdf0e7; color: #a2501a; }
+    .card {
+        background: #fff; border: 1px solid #e3e6ea; border-radius: 8px;
+        padding: 10px; margin-bottom: 10px; opacity: .55;
+    }
+    .card.live { opacity: 1; border-color: #b9d4f0; }
+    .card h3 { font-size: 13px; color: #2b6cb0; margin-bottom: 6px; }
+    .row { margin: 4px 0; }
+    .lbl { color: #888; }
+    .mono { font-family: Consolas, monospace; font-size: 12px; color: #c0392b; }
+    .mover.on { color: #1c6b3c; font-weight: bold; }
+    input[type=text], select {
+        border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px;
+        font-size: 12px; width: 100px;
+    }
+    input[type=checkbox] { vertical-align: -2px; }
+    .hint { font-size: 11px; color: #999; margin-top: 4px; }
+    button {
+        font: 13px "Microsoft YaHei"; border: 1px solid #ccc; border-radius: 6px;
+        background: #fff; padding: 5px 10px; cursor: pointer; margin: 2px 4px 2px 0;
+    }
+    button:hover { background: #f0f4fa; }
+    #btnGen {
+        display: block; width: 100%; padding: 10px; font-size: 15px; font-weight: bold;
+        color: #fff; background: #2b6cb0; border: none; border-radius: 8px; margin: 4px 0 10px;
+    }
+    #btnGen:hover { background: #245a96; }
+    #result {
+        background: #fff; border: 1px solid #e3e6ea; border-radius: 8px;
+        padding: 8px 10px; margin-bottom: 10px; font-size: 12px; display: none;
+        word-break: break-all;
+    }
+    #result .ok { color: #1c6b3c; }
+    #result .err { color: #c0392b; }
+    #result .diag .okline { color: #1c6b3c; }
+    #result .diag .errline { color: #c0392b; }
+    .tools button { font-size: 12px; padding: 4px 8px; }
+    details { font-size: 12px; color: #666; margin-top: 10px; }
+    details summary { cursor: pointer; color: #2b6cb0; }
+    details p { margin: 6px 0; }
+</style>
+</head>
+<body>
+    <div id="status">正在初始化…</div>
+
+    <div class="card" id="step1">
+        <h3>① 移动图形</h3>
+        <div class="row"><span class="lbl">当前选中:</span> <span class="mover" id="moverName">未选择</span></div>
+        <div class="row"><span class="lbl">中心 A:</span> <span class="mono" id="aPos">—</span></div>
+        <div class="hint">在幻灯片中点选一个图形即可，红十字会标出其中心。</div>
+    </div>
+
+    <div class="card" id="step2">
+        <h3>② 路径形态与目标</h3>
+        <div class="row">
+            形态:
+            <select id="pathForm">
+                <option value="line" selected>直线</option>
+                <option value="parabola">抛物线</option>
+                <option value="arc">圆弧</option>
+                <option value="waypoints">航点</option>
+                <option value="trace">描迹</option>
+            </select>
+        </div>
+        <div class="row" id="rowLine">
+            <span class="lbl">B 坐标:</span> <span class="mono" id="bPos">—</span>
+            <button id="btnPlaceC" style="font-size:12px;padding:2px 6px;">放C点</button>
+            <button id="btnPlaceD" style="font-size:12px;padding:2px 6px;">放D点</button>
+            <button id="btnClearCD" style="font-size:12px;padding:2px 6px;">清除</button>
+        </div>
+        <div class="row" id="rowPara" style="display:none;">
+            <button id="btnParaD" style="font-size:12px;padding:2px 6px;">放终点D</button>
+            <button id="btnParaP" style="font-size:12px;padding:2px 6px;">放顶点P</button>
+            <span class="mono" id="paraPos" style="font-size:11px;">需要 D 和 P</span>
+        </div>
+        <div class="row" id="rowArc" style="display:none;">
+            <button id="btnArcD" style="font-size:12px;padding:2px 6px;">放终点D</button>
+            <button id="btnArcM" style="font-size:12px;padding:2px 6px;">放弧点M</button>
+            <span class="mono" id="arcPos" style="font-size:11px;">需要 D 和 M</span>
+        </div>
+        <div class="row" id="rowWp" style="display:none;">
+            <button id="btnAddW" style="font-size:12px;padding:2px 6px;">+航点</button>
+            <button id="btnClearW" style="font-size:12px;padding:2px 6px;">清空航点</button>
+            <label><input type="checkbox" id="smoothW"> 平滑</label>
+            <span class="mono" id="wpPos" style="font-size:11px;">0 个航点</span>
+        </div>
+        <div class="row" id="rowTrace" style="display:none;">
+            <button id="btnTrace" style="font-size:12px;padding:2px 6px;">开始描迹</button>
+            <button id="btnTraceDone" style="font-size:12px;padding:2px 6px;">完成</button>
+            <span class="mono" id="tracePos" style="font-size:11px;">未开始</span>
+        </div>
+        <div class="row"><span class="lbl">参数:</span> <span class="mono" id="cdPos">—</span></div>
+        <div class="row"><span class="lbl">位移:</span> <span class="mono" id="delta">—</span></div>
+        <div class="row"><span class="lbl">终点:</span> <span class="mono" id="distNorm">—</span></div>
+        <div class="row" style="margin-top:6px;">
+            <label><input type="checkbox" id="snapChk" checked> 拖近图形中心/红十字自动吸附</label>
+        </div>
+        <div class="hint" id="formHint">拖动蓝色十字到目标位置。可用「放C/D」切换到标记点对齐模式。</div>
+    </div>
+
+    <div class="card">
+        <h3>③ 参数</h3>
+        <div class="row">
+            时长 <input type="number" id="dur" value="2" min="0.1" step="0.5" style="width:64px"> 秒
+            &nbsp;触发
+            <select id="trig">
+                <option value="1" selected>单击时</option>
+                <option value="2">与上一动画同时</option>
+                <option value="3">上一动画之后</option>
+            </select>
+        </div>
+        <div class="row">
+            <label><input type="checkbox" id="smooth"> 平滑起止（默认匀速）</label>
+            &nbsp;<label><input type="checkbox" id="replaceAnim"> 替换该图形已有动画</label>
+        </div>
+        <div class="row">
+            <label><input type="checkbox" id="keepMarkers"> 生成后保留标记</label>
+            &nbsp;<label><input type="checkbox" id="autoChk" checked> 选中新图形自动开始</label>
+        </div>
+    </div>
+
+    <button id="btnGen">生成路径动画</button>
+    <div id="result"></div>
+
+    <div class="tools">
+        <b style="font-size:12px;color:#888;">工具</b><br>
+        <button id="btnCross">中心十字</button>
+        <button id="btnCleanSlide">清理本页标记</button>
+        <button id="btnDelAnim">删除图形动画</button>
+        <button id="btnDiag">API 诊断</button>
+    </div>
+
+    <div class="hint" style="margin-top:10px;color:#bbb;text-align:center;">路径助手 v1.3.2</div>
+
+    <details>
+        <summary>使用帮助</summary>
+        <p>1. 选中要移动的图形 → 面板自动标出中心 A（红十字）并放置 B 标记（蓝十字）。</p>
+        <p>2. 拖动蓝十字到目标位置 B，虚线为路径预览，坐标实时显示。</p>
+        <p>3. 点「生成路径动画」。选中图形后：绿点=起点（图形中心），红点=终点（B 点）。</p>
+        <p>路径按"图形中心从 A 直线移动到 B"精确生成，与手工拖拽路径的效果一致但位置精确。</p>
+    </details>
+
+<script type="text/javascript" src="../js/enums.js"></script>
+<script type="text/javascript" src="../js/core.js"></script>
+<script type="text/javascript" src="../js/taskpane.js"></script>
+</body>
+</html>
