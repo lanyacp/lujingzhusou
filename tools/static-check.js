@@ -97,9 +97,10 @@ const els = {};
 ['status', 'moverName', 'step1', 'step2', 'aPos', 'bPos', 'cdPos', 'delta', 'distNorm', 'dur', 'trig',
     'smooth', 'replaceAnim', 'keepMarkers', 'autoChk', 'snapChk', 'btnGen', 'btnCross', 'btnCleanSlide',
     'btnDelAnim', 'btnDiag', 'btnPlaceC', 'btnPlaceD', 'btnClearCD', 'result',
-    'pathForm', 'rowLine', 'rowPara', 'rowArc', 'rowWp', 'rowTrace',
+    'pathForm', 'rowLine', 'rowPara', 'rowArc', 'rowWp', 'rowTrace', 'rowAnchor', 'traceHint',
     'paraPos', 'arcPos', 'wpPos', 'tracePos', 'formHint', 'smoothW',
-    'btnParaD', 'btnParaP', 'btnArcD', 'btnArcM', 'btnAddW', 'btnClearW', 'btnTrace', 'btnTraceDone']
+    'btnParaD', 'btnParaP', 'btnArcD', 'btnArcM', 'btnAddW', 'btnClearW', 'btnTrace', 'btnTraceDone',
+    'btnAnchor', 'btnAnchorClear']
     .forEach(id => els[id] = makeEl(id));
 
 let intervalFn = null;
@@ -574,6 +575,32 @@ check(els.status.textContent.includes('所选图形中心'), 'T22 提示落在�
 els.btnClearCD.onclick();
 currentSelection = [mover]; tick(1);
 setForm('line');
+
+// T23: 描迹形态可放C起点(锚点行显示); 完成后可继续描迹; 少点生成弹确认
+timeOffset += 2000; currentSelection = []; tick(1); currentSelection = [mover]; tick(1);
+setForm('trace');
+check(els.rowAnchor.style.display !== 'none', 'T23 非直线形态显示锚点行');
+els.btnAnchor.onclick();
+check(!pcMark.deleted && approx(pcMark.Left + 7, 160 - 42), 'T23 C起点放置(默认左上偏移)');
+els.btnTrace.onclick();
+check(els.status.textContent.includes('描迹中'), 'T23 开始描迹(分段提示)');
+trMark.Left = 300 - 7; trMark.Top = 200 - 7; tick(1);
+els.btnTraceDone.onclick();
+check(els.status.textContent.includes('描迹完成'), 'T23 完成(仅2点)');
+check(els.status.textContent.includes('继续描迹'), 'T23 少点提示可继续');
+els.btnTrace.onclick();
+check(els.status.textContent.includes('继续描迹'), 'T23 恢复模式继续描迹');
+trMark.Left = 400 - 7; trMark.Top = 260 - 7; tick(1);
+check(els.tracePos.textContent.includes('3 点'), 'T23 恢复后累计3点');
+calls.byPath = null;                            // 清旧值再测确认流程
+confirmAnswers.push(false);                     // 少点生成 → 取消
+els.btnGen.onclick();
+check(!calls.byPath, 'T23 少点生成确认可取消');
+confirmAnswers.push(true);                      // 确认 → 生成
+els.btnGen.onclick();
+check(calls.byPath && calls.byPath.pathStr.split('L').length >= 3, 'T23 确认后按折线生成');
+setForm('line');
+check(els.rowAnchor.style.display === 'none', 'T23 回到直线形态隐藏锚点行');
 
 console.log('\n' + (failures === 0 ? '全部通过 ✔' : failures + ' 项失败 ✘'));
 process.exit(failures === 0 ? 0 : 1);

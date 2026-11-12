@@ -293,20 +293,24 @@
         Object.keys(rows).forEach(function (k) {
             try { $(rows[k]).style.display = (k === f) ? '' : 'none'; } catch (e0) { }
         });
+        // 非直线形态显示"放C起点"锚点行; 描迹形态额外显示分段提示
+        try { $('rowAnchor').style.display = (f === 'line') ? 'none' : ''; } catch (e1) { }
+        try { $('traceHint').style.display = (f === 'trace') ? '' : 'none'; } catch (e2) { }
         var hints = {
             line: '拖动蓝色十字到目标位置。「放C/D」可切换为标记点对齐模式。',
             parabola: '抛物线：锚点(C或中心)为起点，「放终点D」「放顶点P」并拖到位，曲线精确经过 P。适合平抛/斜抛。',
             arc: '圆弧：锚点为起点，「放终点D」「放弧点M」，沿 S→M→D 的圆弧运动。',
             waypoints: '航点：「+航点」逐个放置并拖到位，图形按顺序经过；勾选「平滑」为圆滑曲线。',
-            trace: '描迹：先手绘曲线做参照 → 点「开始描迹」→ 拖动出现的【洋红大十字】沿曲线走一遍 → 停住自动完成。'
+            trace: '描迹：可选「放C起点」定锚 → 「开始描迹」→ 分段拖动洋红十字走完曲线 → 停2秒或点「完成」。'
         };
-        try { $('formHint').textContent = hints[f] || ''; } catch (e1) { }
+        try { $('formHint').textContent = hints[f] || ''; } catch (e3) { }
+        try { $('btnTrace').textContent = '开始描迹'; } catch (e4) { }
         if (f === 'trace') setStatus('● 描迹形态：点「开始描迹」按钮，会出现洋红大十字', 'ok');
     }
 
-    /** 描迹引擎 */
+    /** 描迹引擎(分段描迹法: 拖一段→停半秒记录一点; 拖动中定时器不执行, 连续拖只能记起终点) */
     function startTrace() {
-        // 流程未开始时: 若当前正好选中一个图形, 自动开始流程(减少一步操作断点)
+        // 流程未开始时: 若当前正好选中一个图形, 自动开始流程
         if (!state.active) {
             var sel0 = ABP.selectionInfo();
             var cands = [];
@@ -325,21 +329,35 @@
         var mover = resolveMover();
         var c = mover ? ABP.center(mover) : null;
         if (!slide || !c) return setStatus('⚠ 无法定位图形坐标', 'warn');
+        // 恢复模式: 已有描迹数据(曾点完成) → 从最后一点继续补点
+        if (state.trace && !state.trace.active && state.trace.pts && state.trace.pts.length >= 1) {
+            var lastPt = state.trace.pts[state.trace.pts.length - 1];
+            var tr2 = ABP.placeNamedMarker(slide, '__pthlp_TR__', lastPt.x, lastPt.y, 9, E.RGB_MAGENTA);
+            if (!tr2) return setStatus('⚠ 描迹标记创建失败', 'warn');
+            state.trace.active = true;
+            state.trace.lastMoveAt = Date.now();
+            setTickRate(100);
+            try { $('btnTrace').textContent = '继续描迹'; } catch (eL0) { }
+            setStatus('● 继续描迹（已 ' + state.trace.pts.length + ' 点）：分段拖动补点，点「完成」结束', 'ok');
+            return;
+        }
         var refs = ABP.scanAllMarkers(slide);
         var anchor = (refs.pc ? ABP.center(refs.pc) : c) || c;
-        // 洋红标记比 C 点大一号并置顶, 避免与 C 重叠时看不见
         var t = ABP.placeNamedMarker(slide, '__pthlp_TR__', anchor.x, anchor.y, 9, E.RGB_MAGENTA);
         if (!t) return setStatus('⚠ 描迹标记创建失败', 'warn');
         state.trace = { active: true, pts: [{ x: anchor.x, y: anchor.y }], lastMoveAt: Date.now() };
-        setTickRate(130);
-        setStatus('● 描迹中：拖动【洋红大十字】沿参照曲线慢慢移动，停住约1.6秒自动完成', 'ok');
+        setTickRate(100);
+        try { $('btnTrace').textContent = '继续描迹'; } catch (eL1) { }
+        setStatus('● 描迹中【分段拖动】：拖一小段→停半秒(记一点)→再拖；停2秒或点「完成」结束', 'ok');
     }
     function finishTrace(auto) {
         if (!state.trace || !state.trace.active) return;
         state.trace.active = false;
         state.trace.pts = ABP.smoothPts(state.trace.pts);
         setTickRate(350);
-        setStatus('✚ 描迹完成（' + state.trace.pts.length + ' 点），点「生成路径动画」', 'ok');
+        try { $('btnTrace').textContent = '继续描迹'; } catch (eL0) { }
+        var n = state.trace.pts.length;
+        setStatus('✚ 描迹完成（' + n + ' 点）' + (n < 4 ? '——点数少≈直线，可点「继续描迹」用分段法补充' : '，点「生成路径动画」'), 'ok');
     }
     function cancelTrace() {
         if (state.trace && state.trace.active) {
@@ -478,7 +496,7 @@
             }
             var size = ABP.slideSize(pres);
 
-            // 描迹进行中: 记录轨迹 + 停住自动完成
+            // 描迹进行中: 记录轨迹 + 停住自动完成(需≥4点, 防止过早结束只剩直线)
             if (state.form === 'trace' && state.trace && state.trace.active) {
                 var tp2 = refs.tr ? ABP.center(refs.tr) : null;
                 if (tp2) {
@@ -486,7 +504,7 @@
                     if (Math.sqrt(Math.pow(tp2.x - lastP.x, 2) + Math.pow(tp2.y - lastP.y, 2)) > 2.5) {
                         state.trace.pts.push(tp2);
                         state.trace.lastMoveAt = Date.now();
-                    } else if (Date.now() - state.trace.lastMoveAt > 1600 && state.trace.pts.length >= 3) {
+                    } else if (Date.now() - state.trace.lastMoveAt > 2000 && state.trace.pts.length >= 4) {
                         finishTrace(true);
                         return;
                     }
@@ -636,6 +654,17 @@
             } catch (e) { go = true; }
             if (!go) return;
         }
+        // 描迹少点警告: 拖动中定时器不执行 → 只记了起终点 → 生成会近似直线
+        if (state.form === 'trace' && route.pts && route.pts.length < 4) {
+            var go2 = false;
+            try {
+                go2 = window.confirm('描迹只记录到 ' + route.pts.length + ' 个点，生成的将是近似直线。\n\n正确描法（分段描迹）：拖一小段 → 停半秒（记录一点）→ 再拖，走完整条曲线。\n也可点「继续描迹」补点。\n\n仍要按当前点位生成吗？');
+            } catch (e2) { go2 = true; }
+            if (!go2) {
+                setStatus('● 已取消。请用分段拖动重新描迹，或点「继续描迹」补点', 'ok');
+                return;
+            }
+        }
 
         // 路径串: 直线用 pathString, 曲线用构建器产物
         var pathStr, endRel;
@@ -735,6 +764,25 @@
         });
         bind('btnTrace', startTrace);
         bind('btnTraceDone', function () { finishTrace(false); });
+        // 放C起点(锚点): 非直线形态共用; 与直线形态的放C点同一定义
+        bind('btnAnchor', function () {
+            if (!ensureFlow('请先开始流程')) return;
+            var pres = ABP.getPresentation();
+            var slide = resolveSlide(pres);
+            var mover = resolveMover();
+            var c = mover ? ABP.center(mover) : null;
+            if (!slide || !c) return setStatus('⚠ 无法定位图形坐标', 'warn');
+            var m = ABP.placePointMarker(slide, 'C', c);
+            setStatus(m ? '✚ C 起点(绿)已放在图形左上方，拖到描迹起始位置（如笔尖）' : '⚠ C 点放置失败', m ? 'ok' : 'warn');
+        });
+        bind('btnAnchorClear', function () {
+            var pres = ABP.getPresentation();
+            var slide = resolveSlide(pres);
+            if (!slide) return setStatus('⚠ 未打开演示文稿', 'warn');
+            var refs = ABP.scanAllMarkers(slide);
+            if (refs.pc) { try { refs.pc.Delete(); } catch (e0) { } }
+            setStatus('已清除 C 起点，恢复以图形中心为锚', 'ok');
+        });
 
         // 标记点 C/D
         bind('btnPlaceC', function () {

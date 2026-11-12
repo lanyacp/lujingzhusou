@@ -78,6 +78,11 @@
                 <option value="trace">描迹</option>
             </select>
         </div>
+        <div class="row" id="rowAnchor" style="display:none;">
+            <button id="btnAnchor" style="font-size:12px;padding:2px 6px;">放C起点(锚点)</button>
+            <button id="btnAnchorClear" style="font-size:12px;padding:2px 6px;">清除C</button>
+            <span class="lbl" style="font-size:11px;">起点默认=图形中心</span>
+        </div>
         <div class="row" id="rowLine">
             <span class="lbl">B 坐标:</span> <span class="mono" id="bPos">—</span>
             <button id="btnPlaceC" style="font-size:12px;padding:2px 6px;">放C点</button>
@@ -112,6 +117,7 @@
             <label><input type="checkbox" id="snapChk" checked> 拖近图形中心/红十字自动吸附</label>
         </div>
         <div class="hint" id="formHint">拖动蓝色十字到目标位置。可用「放C/D」切换到标记点对齐模式。</div>
+        <div class="hint" id="traceHint" style="display:none;color:#c0392b;"><b>分段描迹法</b>：拖一小段→停半秒（记录一点）→再拖。一次连续拖完只会记下起终点！</div>
     </div>
 
     <div class="card">
@@ -146,7 +152,7 @@
         <button id="btnDiag">API 诊断</button>
     </div>
 
-    <div class="hint" style="margin-top:10px;color:#bbb;text-align:center;">路径助手 v1.3.3</div>
+    <div class="hint" style="margin-top:10px;color:#bbb;text-align:center;">路径助手 v1.3.4</div>
 
     <details>
         <summary>使用帮助</summary>
