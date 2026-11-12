@@ -352,7 +352,23 @@
         if (slide) ABP.deleteMarkersByPrefix(slide, '__pthlp_TR__');
     }
 
-    /** 放置形态标记(D/P/M) */
+    /** 当前选中的"其他图形"(非标记/非移动图形): 用于 D 点/航点直接落位 */
+    function selectedOtherShape() {
+        try {
+            var sel = ABP.selectionInfo();
+            for (var i = 0; i < sel.shapes.length; i++) {
+                var s = sel.shapes[i];
+                if (ABP.isMarker(s)) continue;
+                var loc = ABP.locateShape(s);
+                if (!loc) continue;
+                if (ABP.shapeIdOf(loc.shape) === state.moverId) return null;   // 选中移动图形→用默认偏移
+                return loc.shape;
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    /** 放置形态标记(D/P/M); D 在选中其他图形时直接放其中心 */
     function placeFormMarker(name, ox, oy, color) {
         if (!ensureFlow('请先开始流程')) return;
         var pres = ABP.getPresentation();
@@ -362,9 +378,15 @@
         if (!slide || !c) return setStatus('⚠ 无法定位图形坐标', 'warn');
         var refs = ABP.scanAllMarkers(slide);
         var anchor = (refs.pc ? ABP.center(refs.pc) : c) || c;
-        var m = ABP.placeNamedMarker(slide, name, anchor.x + ox, anchor.y + oy, 7, color);
+        var tx = anchor.x + ox, ty = anchor.y + oy, atShape = false;
+        if (name === '__pthlp_PD__') {
+            var other = selectedOtherShape();
+            var oc = other ? ABP.center(other) : null;
+            if (oc) { tx = oc.x; ty = oc.y; atShape = true; }
+        }
+        var m = ABP.placeNamedMarker(slide, name, tx, ty, 7, color);
         var tag = name.indexOf('__pthlp_PM') === 0 ? (state.form === 'parabola' ? '顶点P(紫)' : '弧点M(紫)') : '终点D(橙)';
-        setStatus(m ? ('✚ 已放置 ' + tag + '，拖到位置（拖近图形松手自动吸附中心）') : '⚠ 标记创建失败', m ? 'ok' : 'warn');
+        setStatus(m ? ('✚ 已放置 ' + tag + (atShape ? ' 在所选图形中心（精确对齐），可再拖动微调' : '，拖到位置（拖近图形松手自动吸附中心）')) : '⚠ 标记创建失败', m ? 'ok' : 'warn');
     }
 
     /** 判断候选图形是否就是当前 mover(新版桥接下候选的 Id/名称可能失真, 需兜底定位比对) */
@@ -446,8 +468,11 @@
                 return;
             }
             // 中途切换: 另选了唯一的其他图形 → 以新图形重新开始(顺带清理旧页标记)
-            if (state.auto && Date.now() > state.coolUntil && candidates.length === 1 &&
-                !sameCandidate(candidates[0])) {
+            // 但已放置 C/D/P/M/航点/描迹标记时锁定移动图形(点其他图形常是为了定位 D/做参照)
+            var armed = !!(refs.pc || refs.pd || refs.pm || (refs.ws && refs.ws.length) || refs.tr);
+            var wantSwitch = state.auto && Date.now() > state.coolUntil &&
+                candidates.length === 1 && !sameCandidate(candidates[0]);
+            if (wantSwitch && !armed) {
                 activate(candidates[0]);
                 return;
             }
@@ -492,7 +517,8 @@
                 $('cdPos').textContent = '⚠ ' + route.need;
                 $('delta').textContent = '—';
                 $('distNorm').textContent = '—';
-                setStatus('● ' + route.need, 'ok');
+                setStatus(wantSwitch && armed ? '🔒 已放置标记：移动图形已锁定（点其他图形不会切换）。换图形请先「清除标记点」'
+                    : '● ' + route.need, 'ok');
                 return renderMover();
             }
 
@@ -551,7 +577,8 @@
             } catch (eInfo) { }
 
             setStatus(snapped ? ('✦ 已自动吸附到' + (snapped.kind || '') + '中心（微调时可取消勾选吸附）') :
-                ('● ' + route.desc + ' 就绪，点「生成路径动画」'), 'ok');
+                (wantSwitch && armed ? '🔒 已放置标记：移动图形已锁定（点其他图形不会切换）。换图形请先「清除标记点」' :
+                    '● ' + route.desc + ' 就绪，点「生成路径动画」'), 'ok');
         } else if (state.auto && Date.now() > state.coolUntil) {
             if (candidates.length === 1) {
                 var candId = ABP.shapeIdOf(candidates[0]);
@@ -691,8 +718,13 @@
             var refs = ABP.scanAllMarkers(slide);
             var anchor = (refs.pc ? ABP.center(refs.pc) : c) || c;
             var n = (refs.ws || []).length + 1;
-            var m = ABP.placeNamedMarker(slide, '__pthlp_W' + n + '__', anchor.x + 30 + 22 * (n - 1), anchor.y + 28, 7, E.RGB_CYAN);
-            setStatus(m ? ('✚ 已放置航点 W' + n + '(青)，拖到位；可继续「+航点」') : '⚠ 航点创建失败', m ? 'ok' : 'warn');
+            // 选中其他图形时, 航点直接落其中心(快速规划"经过哪些图形")
+            var other = selectedOtherShape();
+            var oc = other ? ABP.center(other) : null;
+            var wx = oc ? oc.x : anchor.x + 30 + 22 * (n - 1);
+            var wy = oc ? oc.y : anchor.y + 28;
+            var m = ABP.placeNamedMarker(slide, '__pthlp_W' + n + '__', wx, wy, 7, E.RGB_CYAN);
+            setStatus(m ? ('✚ 已放置航点 W' + n + (oc ? ' 在所选图形中心' : '(青)，拖到位') + '；可继续「+航点」') : '⚠ 航点创建失败', m ? 'ok' : 'warn');
         });
         bind('btnClearW', function () {
             var pres = ABP.getPresentation();
@@ -722,8 +754,12 @@
             var mover = resolveMover();
             var c = mover ? ABP.center(mover) : null;
             if (!slide || !c) return setStatus('⚠ 无法定位图形坐标', 'warn');
-            var m = ABP.placePointMarker(slide, 'D', c);
-            setStatus(m ? '✚ D 点(橙十字)已放在图形右下方，拖动它到目标位置（拖近红十字自动吸附）' : '⚠ D 点放置失败', m ? 'ok' : 'warn');
+            // 选中其他图形时, D 直接落其中心(先点目标图形再点放D点即可)
+            var other = selectedOtherShape();
+            var oc = other ? ABP.center(other) : null;
+            var m = oc ? ABP.placeNamedMarker(slide, '__pthlp_PD__', oc.x, oc.y, 7, E.RGB_ORANGE)
+                       : ABP.placePointMarker(slide, 'D', c);
+            setStatus(m ? ('✚ D 点(橙十字)已放' + (oc ? '在所选图形中心（精确对齐），可再拖动微调' : '在图形右下方，拖动它到目标位置（拖近图形/红十字自动吸附）')) : '⚠ D 点放置失败', m ? 'ok' : 'warn');
         });
         bind('btnClearCD', function () {
             var pres = ABP.getPresentation();

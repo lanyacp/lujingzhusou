@@ -257,7 +257,16 @@ const mockABP = {
     nearestSnapTarget: (sl, p) => snapTargetMock,
     snapMarkerTo: (m, t) => { m.Left = t.x - m.Width / 2; m.Top = t.y - m.Height / 2; return true; },
     updatePreviewLine: (sl, p1, p2) => { calls.preview++; calls.lastLine = { p1, p2 }; return {}; },
-    cleanFlowMarkers: sl => { calls.cleanFlow++; if (sl && sl.idx) calls.cleanedSlides.push(sl.idx); return 0; },
+    cleanFlowMarkers: sl => {
+        calls.cleanFlow++;
+        if (sl && sl.idx) calls.cleanedSlides.push(sl.idx);
+        // 与真实实现一致: 删除流程标记(A/B/C/D/P/T/航点), 保留中心十字
+        let n = 0;
+        [bMark, aMark, pcMark, pdMark, pmMark, trMark].concat(wMarks).forEach(s => {
+            if (!s.deleted) { s.deleted = true; n++; }
+        });
+        return n;
+    },
     cleanSlideMarkers: () => 0,
     deleteShapeAnimations: () => 2,
     toggleCenterCross: () => true,
@@ -540,6 +549,30 @@ check(els.status.textContent.includes('描迹完成'), 'T20 完成描迹');
 els.btnGen.onclick();
 check(calls.byPath && calls.byPath.pathStr.indexOf('M 0 0 L') === 0, 'T20 描迹折线路径');
 check(calls.byPath && calls.byPath.pathStr.split('L').length >= 4, 'T20 多段折线');
+setForm('line');
+
+// T21: 标记锁定 —— 放C后点其他图形, 流程与标记不被清除; 清除标记后恢复切换
+timeOffset += 2000; currentSelection = []; tick(1); currentSelection = [mover]; tick(1);
+check(els.moverName.textContent === '矩形1', 'T21 前置: 流程在矩形1');
+els.btnPlaceC.onclick();
+currentSelection = [other];                  // 点了另一个图形
+tick(2);
+check(els.moverName.textContent === '矩形1', 'T21 移动图形未切换(标记锁定)');
+check(!pcMark.deleted, 'T21 C 标记保留');
+check(els.status.textContent.includes('锁定'), 'T21 锁定提示');
+els.btnClearCD.onclick();                    // 清除标记 → 解锁
+tick(1);
+check(els.moverName.textContent === '圆形1', 'T21 清除标记后恢复自动切换');
+
+// T22: 点选他图形后放D → D 直接落其中心
+timeOffset += 2000; currentSelection = []; tick(1); currentSelection = [mover]; tick(1);
+els.btnPlaceC.onclick();
+currentSelection = [other];                  // 先点目标图形
+els.btnPlaceD.onclick();                     // 再放D → 应落在圆形中心(540,340)
+check(!pdMark.deleted && approx(pdMark.Left + 7, 540) && approx(pdMark.Top + 7, 340), 'T22 D点直接落在所选图形中心');
+check(els.status.textContent.includes('所选图形中心'), 'T22 提示落在所选中心');
+els.btnClearCD.onclick();
+currentSelection = [mover]; tick(1);
 setForm('line');
 
 console.log('\n' + (failures === 0 ? '全部通过 ✔' : failures + ' 项失败 ✘'));
