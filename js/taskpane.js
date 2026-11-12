@@ -296,6 +296,7 @@
         // 非直线形态显示"放C起点"锚点行; 描迹形态额外显示分段提示
         try { $('rowAnchor').style.display = (f === 'line') ? 'none' : ''; } catch (e1) { }
         try { $('traceHint').style.display = (f === 'trace') ? '' : 'none'; } catch (e2) { }
+        try { $('rowTraceAuto').style.display = (f === 'trace') ? '' : 'none'; } catch (e2b) { }
         var hints = {
             line: '拖动蓝色十字到目标位置。「放C/D」可切换为标记点对齐模式。',
             parabola: '抛物线：锚点(C或中心)为起点，「放终点D」「放顶点P」并拖到位，曲线精确经过 P。适合平抛/斜抛。',
@@ -496,15 +497,20 @@
             }
             var size = ABP.slideSize(pres);
 
-            // 描迹进行中: 记录轨迹 + 停住自动完成(需≥4点, 防止过早结束只剩直线)
+            // 描迹进行中: 松开自动记点(拖拽中定时器阻塞, 松手恢复即记) + 停住自动完成
             if (state.form === 'trace' && state.trace && state.trace.active) {
                 var tp2 = refs.tr ? ABP.center(refs.tr) : null;
                 if (tp2) {
                     var lastP = state.trace.pts[state.trace.pts.length - 1];
-                    if (Math.sqrt(Math.pow(tp2.x - lastP.x, 2) + Math.pow(tp2.y - lastP.y, 2)) > 2.5) {
-                        state.trace.pts.push(tp2);
+                    var moved = Math.sqrt(Math.pow(tp2.x - lastP.x, 2) + Math.pow(tp2.y - lastP.y, 2)) > 2.5;
+                    var autoOn = true;
+                    try { autoOn = $('autoTrace').checked; } catch (eA) { }
+                    if (moved && autoOn) {
+                        state.trace.pts.push({ x: tp2.x, y: tp2.y });
                         state.trace.lastMoveAt = Date.now();
-                    } else if (Date.now() - state.trace.lastMoveAt > 2000 && state.trace.pts.length >= 4) {
+                        try { $('tracePos').textContent = '描迹中 ' + state.trace.pts.length + ' 点'; } catch (eB) { }
+                        setStatus('✚ 松开已自动记 ' + state.trace.pts.length + ' 点，继续描下一段', 'ok');
+                    } else if (!moved && Date.now() - state.trace.lastMoveAt > 2000 && state.trace.pts.length >= 4) {
                         finishTrace(true);
                         return;
                     }

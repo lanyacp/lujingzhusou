@@ -88,7 +88,7 @@ function makeEl(id) {
     return {
         id, textContent: '', innerHTML: '', className: '',
         value: id === 'dur' ? '2' : (id === 'pathForm' ? 'line' : '1'),
-        checked: id === 'autoChk' || id === 'snapChk',
+        checked: id === 'autoChk' || id === 'snapChk' || id === 'autoTrace',
         style: {}, onclick: null, onchange: null,
         addEventListener() { }
     };
@@ -100,7 +100,7 @@ const els = {};
     'pathForm', 'rowLine', 'rowPara', 'rowArc', 'rowWp', 'rowTrace', 'rowAnchor', 'traceHint',
     'paraPos', 'arcPos', 'wpPos', 'tracePos', 'formHint', 'smoothW',
     'btnParaD', 'btnParaP', 'btnArcD', 'btnArcM', 'btnAddW', 'btnClearW', 'btnTrace', 'btnTraceDone',
-    'btnTracePoint', 'btnAnchor', 'btnAnchorClear']
+    'btnTracePoint', 'btnAnchor', 'btnAnchorClear', 'autoTrace', 'rowTraceAuto']
     .forEach(id => els[id] = makeEl(id));
 
 let intervalFn = null;
@@ -619,6 +619,22 @@ els.btnTraceDone.onclick();
 calls.byPath = null;
 els.btnGen.onclick();
 check(calls.byPath && calls.byPath.pathStr.split('L').length >= 4, 'T24 生成多段折线(4点)');
+setForm('line');
+
+// T25: 松开自动记点(默认开) —— 移动后tick(模拟松手)自动记录; 关闭则不自动
+timeOffset += 2000; currentSelection = []; tick(1); currentSelection = [mover]; tick(1);
+setForm('trace');
+els.btnTrace.onclick();                       // 起点1点
+trMark.Left = 260 - 7; trMark.Top = 180 - 7; tick(1);   // 松手→自动记
+trMark.Left = 360 - 7; trMark.Top = 240 - 7; tick(1);
+check(els.tracePos.textContent.includes('3 点'), 'T25 松开自动记点累计3点: ' + els.tracePos.textContent);
+els.autoTrace.checked = false;                // 关闭自动
+trMark.Left = 460 - 7; trMark.Top = 300 - 7; tick(1);
+check(els.tracePos.textContent.includes('3 点'), 'T25 关闭自动后不记点');
+els.btnTracePoint.onclick();                  // 手动补
+check(els.tracePos.textContent.includes('4 点'), 'T25 关闭自动仍可手动记一点');
+els.autoTrace.checked = true;
+els.btnTraceDone.onclick();
 setForm('line');
 
 console.log('\n' + (failures === 0 ? '全部通过 ✔' : failures + ' 项失败 ✘'));
