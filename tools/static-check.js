@@ -100,7 +100,7 @@ const els = {};
     'pathForm', 'rowLine', 'rowPara', 'rowArc', 'rowWp', 'rowTrace', 'rowAnchor', 'traceHint',
     'paraPos', 'arcPos', 'wpPos', 'tracePos', 'formHint', 'smoothW',
     'btnParaD', 'btnParaP', 'btnArcD', 'btnArcM', 'btnAddW', 'btnClearW', 'btnTrace', 'btnTraceDone',
-    'btnAnchor', 'btnAnchorClear']
+    'btnTracePoint', 'btnAnchor', 'btnAnchorClear']
     .forEach(id => els[id] = makeEl(id));
 
 let intervalFn = null;
@@ -601,6 +601,25 @@ els.btnGen.onclick();
 check(calls.byPath && calls.byPath.pathStr.split('L').length >= 3, 'T23 确认后按折线生成');
 setForm('line');
 check(els.rowAnchor.style.display === 'none', 'T23 回到直线形态隐藏锚点行');
+
+// T24: 「记一点」按钮逐点记录(不依赖拖拽轮询)
+timeOffset += 2000; currentSelection = []; tick(1); currentSelection = [mover]; tick(1);
+setForm('trace');
+els.btnTrace.onclick();                       // 开始, 记起点(1点)
+trMark.Left = 250 - 7; trMark.Top = 170 - 7;  // 拖到第2处(不tick, 模拟拖拽中无轮询)
+els.btnTracePoint.onclick();                  // 点按钮记录
+trMark.Left = 350 - 7; trMark.Top = 230 - 7;
+els.btnTracePoint.onclick();
+trMark.Left = 460 - 7; trMark.Top = 300 - 7;
+els.btnTracePoint.onclick();
+check(els.tracePos.textContent.includes('4 点'), 'T24 记一点累计4点(含起点): ' + els.tracePos.textContent);
+els.btnTracePoint.onclick();                  // 未移动再点 → 不重复
+check(els.tracePos.textContent.includes('4 点'), 'T24 未移动不重复记点');
+els.btnTraceDone.onclick();
+calls.byPath = null;
+els.btnGen.onclick();
+check(calls.byPath && calls.byPath.pathStr.split('L').length >= 4, 'T24 生成多段折线(4点)');
+setForm('line');
 
 console.log('\n' + (failures === 0 ? '全部通过 ✔' : failures + ' 项失败 ✘'));
 process.exit(failures === 0 ? 0 : 1);

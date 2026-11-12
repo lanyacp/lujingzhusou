@@ -301,7 +301,7 @@
             parabola: '抛物线：锚点(C或中心)为起点，「放终点D」「放顶点P」并拖到位，曲线精确经过 P。适合平抛/斜抛。',
             arc: '圆弧：锚点为起点，「放终点D」「放弧点M」，沿 S→M→D 的圆弧运动。',
             waypoints: '航点：「+航点」逐个放置并拖到位，图形按顺序经过；勾选「平滑」为圆滑曲线。',
-            trace: '描迹：可选「放C起点」定锚 → 「开始描迹」→ 分段拖动洋红十字走完曲线 → 停2秒或点「完成」。'
+            trace: '描迹：可选「放C起点」定锚 → 「开始描迹」→ 拖洋红十字到曲线下一处→点「记一点」，逐点走完 → 「完成」。'
         };
         try { $('formHint').textContent = hints[f] || ''; } catch (e3) { }
         try { $('btnTrace').textContent = '开始描迹'; } catch (e4) { }
@@ -348,7 +348,7 @@
         state.trace = { active: true, pts: [{ x: anchor.x, y: anchor.y }], lastMoveAt: Date.now() };
         setTickRate(100);
         try { $('btnTrace').textContent = '继续描迹'; } catch (eL1) { }
-        setStatus('● 描迹中【分段拖动】：拖一小段→停半秒(记一点)→再拖；停2秒或点「完成」结束', 'ok');
+        setStatus('● 描迹中：拖洋红十字到曲线下一处→松手→点「记一点」；逐点走完→「完成」', 'ok');
     }
     function finishTrace(auto) {
         if (!state.trace || !state.trace.active) return;
@@ -764,6 +764,27 @@
         });
         bind('btnTrace', startTrace);
         bind('btnTraceDone', function () { finishTrace(false); });
+        // 「记一点」: 面板按钮点击不受 WPS 拖拽阻塞, 是可靠的逐点记录方式
+        bind('btnTracePoint', function () {
+            if (!state.trace || !state.trace.active) {
+                setStatus('⚠ 请先点「开始描迹」（或「继续描迹」）', 'warn');
+                return;
+            }
+            var pres = ABP.getPresentation();
+            var slide = resolveSlide(pres);
+            var refs = ABP.scanAllMarkers(slide);
+            var p = refs.tr ? ABP.center(refs.tr) : null;
+            if (!p) { setStatus('⚠ 找不到描迹标记，请重新「开始描迹」', 'warn'); return; }
+            var last = state.trace.pts[state.trace.pts.length - 1];
+            if (Math.sqrt(Math.pow(p.x - last.x, 2) + Math.pow(p.y - last.y, 2)) < 0.5) {
+                setStatus('● 标记还没移动：先拖到曲线下一处，再点「记一点」', 'ok');
+                return;
+            }
+            state.trace.pts.push({ x: p.x, y: p.y });
+            state.trace.lastMoveAt = Date.now();
+            try { $('tracePos').textContent = '描迹中 ' + state.trace.pts.length + ' 点'; } catch (e0) { }
+            setStatus('✚ 已记录 ' + state.trace.pts.length + ' 点。继续拖→「记一点」；走完点「完成」', 'ok');
+        });
         // 放C起点(锚点): 非直线形态共用; 与直线形态的放C点同一定义
         bind('btnAnchor', function () {
             if (!ensureFlow('请先开始流程')) return;

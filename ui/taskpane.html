@@ -107,6 +107,7 @@
         </div>
         <div class="row" id="rowTrace" style="display:none;">
             <button id="btnTrace" style="font-size:12px;padding:2px 6px;">开始描迹</button>
+            <button id="btnTracePoint" style="font-size:12px;padding:2px 6px;background:#2b6cb0;color:#fff;">记一点</button>
             <button id="btnTraceDone" style="font-size:12px;padding:2px 6px;">完成</button>
             <span class="mono" id="tracePos" style="font-size:11px;">未开始</span>
         </div>
@@ -117,7 +118,7 @@
             <label><input type="checkbox" id="snapChk" checked> 拖近图形中心/红十字自动吸附</label>
         </div>
         <div class="hint" id="formHint">拖动蓝色十字到目标位置。可用「放C/D」切换到标记点对齐模式。</div>
-        <div class="hint" id="traceHint" style="display:none;color:#c0392b;"><b>分段描迹法</b>：拖一小段→停半秒（记录一点）→再拖。一次连续拖完只会记下起终点！</div>
+        <div class="hint" id="traceHint" style="display:none;color:#c0392b;"><b>描迹法</b>：拖洋红十字到曲线下一处→松手→点「记一点」。逐点描完整条曲线→「完成」。点越多越贴合曲线。</div>
     </div>
 
     <div class="card">
@@ -152,7 +153,7 @@
         <button id="btnDiag">API 诊断</button>
     </div>
 
-    <div class="hint" style="margin-top:10px;color:#bbb;text-align:center;">路径助手 v1.3.4</div>
+    <div class="hint" style="margin-top:10px;color:#bbb;text-align:center;">路径助手 v1.3.5</div>
 
     <details>
         <summary>使用帮助</summary>
