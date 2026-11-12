@@ -637,5 +637,20 @@ els.autoTrace.checked = true;
 els.btnTraceDone.onclick();
 setForm('line');
 
+// T26: 段间长停顿不再自动结束(移除停2秒自动完成), 停顿后仍可继续记录
+timeOffset += 2000; currentSelection = []; tick(1); currentSelection = [mover]; tick(1);
+setForm('trace');
+els.btnTrace.onclick();
+trMark.Left = 260 - 7; trMark.Top = 180 - 7; tick(1);
+trMark.Left = 360 - 7; trMark.Top = 240 - 7; tick(1);
+trMark.Left = 460 - 7; trMark.Top = 300 - 7; tick(1);   // 4点
+timeOffset += 5000;                                     // 长停顿5秒
+tick(3);
+check(els.tracePos.textContent.includes('描迹中 4 点'), 'T26 停顿5秒不自动结束: ' + els.tracePos.textContent);
+trMark.Left = 560 - 7; trMark.Top = 340 - 7; tick(1);
+check(els.tracePos.textContent.includes('5 点'), 'T26 停顿后继续记录第5点');
+els.btnTraceDone.onclick();
+setForm('line');
+
 console.log('\n' + (failures === 0 ? '全部通过 ✔' : failures + ' 项失败 ✘'));
 process.exit(failures === 0 ? 0 : 1);

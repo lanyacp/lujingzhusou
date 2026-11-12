@@ -497,7 +497,8 @@
             }
             var size = ABP.slideSize(pres);
 
-            // 描迹进行中: 松开自动记点(拖拽中定时器阻塞, 松手恢复即记) + 停住自动完成
+            // 描迹进行中: 松开自动记点(拖拽中定时器阻塞, 松手恢复即记)
+            // 不做"停顿自动完成"——段间停顿是正常操作, 自动结束会中断记录
             if (state.form === 'trace' && state.trace && state.trace.active) {
                 var tp2 = refs.tr ? ABP.center(refs.tr) : null;
                 if (tp2) {
@@ -509,10 +510,7 @@
                         state.trace.pts.push({ x: tp2.x, y: tp2.y });
                         state.trace.lastMoveAt = Date.now();
                         try { $('tracePos').textContent = '描迹中 ' + state.trace.pts.length + ' 点'; } catch (eB) { }
-                        setStatus('✚ 松开已自动记 ' + state.trace.pts.length + ' 点，继续描下一段', 'ok');
-                    } else if (!moved && Date.now() - state.trace.lastMoveAt > 2000 && state.trace.pts.length >= 4) {
-                        finishTrace(true);
-                        return;
+                        setStatus('✚ 已记 ' + state.trace.pts.length + ' 点，继续描；走完点「完成」', 'ok');
                     }
                 }
             }
