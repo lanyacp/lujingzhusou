@@ -5,8 +5,9 @@
 $ErrorActionPreference = 'Stop'
 $srcDir = Join-Path $PSScriptRoot 'ppt-src'
 $outDir = Join-Path $PSScriptRoot '..\PowerPoint版'
-if (Test-Path $outDir) { Remove-Item -Recurse -Force $outDir }
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+$outPptm = Join-Path $outDir '路径助手.pptm'
+if (Test-Path $outPptm) { Remove-Item -Force $outPptm }   # 只清旧 pptm, 保留说明文件
 $outPptm = Join-Path $outDir '路径助手.pptm'
 $utf8 = [System.Text.Encoding]::UTF8
 
