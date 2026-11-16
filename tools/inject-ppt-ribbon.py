@@ -16,8 +16,13 @@ SRC_XML = os.path.join(ROOT, "tools", "ppt-src", "customUI14.xml")
 PPAM = os.path.join(ROOT, "PowerPoint版", "PathHelper.ppam")
 
 CUSTOM_PART = "customUI/customUI14.xml"
-REL_TYPE = "http://schemas.microsoft.com/office/2009/07/customui"
+REL_TYPE = "http://schemas.microsoft.com/office/2007/relationships/ui/extensibility"
 CT_TYPE = "application/vnd.ms-office.customUI14+xml"
+# 历史上误用过的错误关系类型, 注入时一并清除
+LEGACY_REL_TYPES = [
+    "http://schemas.microsoft.com/office/2009/07/customui",
+    REL_TYPE,
+]
 
 
 def inject(path):
@@ -34,11 +39,12 @@ def inject(path):
             continue  # 旧的 customUI, 跳过
         if name == "_rels/.rels":
             text = data.decode("utf-8")
-            # 移除旧的 customUI 关系
-            text = re.sub(
-                r'<Relationship[^>]*Type="%s"[^>]*/>' % re.escape(REL_TYPE),
-                "", text,
-            )
+            # 移除旧的 customUI 关系(含历史上误用的类型)
+            for legacy in LEGACY_REL_TYPES:
+                text = re.sub(
+                    r'<Relationship[^>]*Type="%s"[^>]*/>' % re.escape(legacy),
+                    "", text,
+                )
             rid = "rIdRibbon"
             text = text.replace(
                 "</Relationships>",
