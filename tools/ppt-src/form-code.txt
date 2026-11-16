@@ -1,0 +1,59 @@
+Private Sub UserForm_Initialize()
+    cmbForm.Clear
+    cmbForm.AddItem "直线"
+    cmbForm.AddItem "抛物线"
+    cmbForm.AddItem "圆弧"
+    cmbForm.AddItem "航点"
+    cmbForm.ListIndex = 0
+    cmbTrig.Clear
+    cmbTrig.AddItem "单击时"
+    cmbTrig.AddItem "与上一动画同时"
+    cmbTrig.AddItem "上一动画之后"
+    cmbTrig.ListIndex = 0
+    txtDur.Text = "2"
+    lblStatus.Caption = "选中图形点「开始」"
+End Sub
+
+Private Sub cmbForm_Change()
+    SetForm cmbForm.Value
+End Sub
+
+Private Sub btnStart_Click()
+    actStart
+End Sub
+
+Private Sub btnCross_Click()
+    actCenterCross
+End Sub
+
+Private Sub btnC_Click()
+    actPlaceC
+End Sub
+
+Private Sub btnD_Click()
+    actPlaceD
+End Sub
+
+Private Sub btnP_Click()
+    actPlaceP
+End Sub
+
+Private Sub btnW_Click()
+    actAddW
+End Sub
+
+Private Sub btnWC_Click()
+    actClearW
+End Sub
+
+Private Sub btnGen_Click()
+    actGenerate
+End Sub
+
+Private Sub btnClean_Click()
+    actClean
+End Sub
+
+Private Sub btnClose_Click()
+    Unload Me
+End Sub
