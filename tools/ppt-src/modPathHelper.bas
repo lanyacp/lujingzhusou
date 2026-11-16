@@ -22,8 +22,15 @@ Public gForm As String   ' line/parabola/arc/waypoints
 ' ---------------- 面板 ----------------
 
 Public Sub ShowPanel()
-    On Error Resume Next
+    On Error GoTo eh
+    frmPanel.StartUpPosition = 1   ' CenterOwner
     frmPanel.Show vbModeless
+    Exit Sub
+eh:
+    MsgBox "面板启动失败: " & Err.Description & vbCrLf & vbCrLf & _
+           "若提示宏被禁用: 文件→选项→信任中心→信任中心设置→宏设置" & vbCrLf & _
+           "选「禁用所有宏，并发出通知」→确定 → 关闭文件重新打开 → 点黄条「启用内容」", _
+           vbExclamation, "路径助手"
 End Sub
 
 Public Sub SetForm(nm As String)

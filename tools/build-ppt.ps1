@@ -56,8 +56,8 @@ try {
     $s1.Shapes.Item($s1.Shapes.Count).TextFrame.TextRange.Font.Size = 36
     $s1.Shapes.Item($s1.Shapes.Count).TextFrame.TextRange.Font.Bold = $true
     $null = $s1.Shapes.AddTextbox(1, 120, 180, 480, 120)
-    $s1.Shapes.Item($s1.Shapes.Count).TextFrame.TextRange.Text = "三步用法:`r1. 打开你的课件(保持本文件也开着)`r2. 选中图形 → 点下方启动按钮 → 面板里点「开始」`r3. 拖标记 → 「生成路径动画」"
-    $s1.Shapes.Item($s1.Shapes.Count).TextFrame.TextRange.Font.Size = 16
+    $s1.Shapes.Item($s1.Shapes.Count).TextFrame.TextRange.Text = "三步用法:`r1. 打开你的课件(保持本文件也开着)`r2. 选中图形 → 点下方启动按钮 → 面板里点「开始」`r3. 拖标记 → 「生成路径动画」`r`r【点击无效时】宏被禁用了: 文件→选项→信任中心→信任中心设置→宏设置→选「禁用所有宏，并发出通知」→确定 → 关闭重开本文件 → 点顶部黄条「启用内容」→ 再点按钮; 也可 Alt+F8 运行 ShowPanel"
+    $s1.Shapes.Item($s1.Shapes.Count).TextFrame.TextRange.Font.Size = 14
     $btn = $s1.Shapes.AddShape(5, 240, 330, 240, 70)      # msoShapeRoundedRectangle
     $btn.Name = 'btnLaunch'
     $btn.TextFrame.TextRange.Text = '▶ 启动路径助手'
