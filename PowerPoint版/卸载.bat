@@ -1,11 +1,9 @@
 @echo off
-chcp 65001 >nul
 setlocal
-
-echo å¸è½½ è·¯å¾„åŠ©æ‰‹ PowerPoint å¸¸é©»ç‰ˆ...
+echo Ğ¶ÔØ Â·¾¶ÖúÊÖ PowerPoint ³£×¤°æ...
 reg delete "HKCU\Software\Microsoft\Office\16.0\PowerPoint\AddIns\ABPathHelper" /f >nul 2>&1
 reg delete "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\ABPathHelper" /f >nul 2>&1
 if exist "%APPDATA%\ABPathHelper" rmdir /s /q "%APPDATA%\ABPathHelper"
 echo.
-echo å¸è½½å®Œæˆï¼Œé‡å¯ PowerPoint ç”Ÿæ•ˆã€‚
+echo Ğ¶ÔØÍê³É, ÖØÆô PowerPoint ÉúĞ§.
 pause
