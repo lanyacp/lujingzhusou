@@ -14,10 +14,16 @@ Public Const NM_PC As String = "__pthlp_PC__"
 Public Const NM_PD As String = "__pthlp_PD__"
 Public Const NM_PM As String = "__pthlp_PM__"
 Public Const NM_WP As String = "__pthlp_W"
+Public Const NM_TR As String = "__pthlp_TR__"
 
 Public gMover As Shape
 Public gSlide As Slide
-Public gForm As String   ' line/parabola/arc/waypoints
+Public gForm As String   ' line/parabola/arc/waypoints/trace
+
+' 描迹状态
+Public gTraceOn As Boolean
+Public gTraceN As Long
+Public gTracePts() As Variant
 
 ' ---------------- 面板 ----------------
 
@@ -82,6 +88,7 @@ Public Sub SetForm(nm As String)
         Case "抛物线": gForm = "parabola"
         Case "圆弧": gForm = "arc"
         Case "航点": gForm = "waypoints"
+        Case "描迹": gForm = "trace"
         Case Else: gForm = "line"
     End Select
     If gForm <> "line" Then
@@ -89,6 +96,7 @@ Public Sub SetForm(nm As String)
         Dim b As Shape: Set b = FindMark(gSlide, NM_B)
         If Not b Is Nothing Then b.Delete
     End If
+    If gForm <> "trace" Then gTraceOn = False   ' 离开描迹停止轮询
 End Sub
 
 ' ---------------- 基础工具 ----------------
@@ -206,7 +214,8 @@ Public Sub actStart()
     Dim c As Variant: c = CenterOf(sh)
     AddCross gSlide, NM_A, c(0), c(1), 7, RGB(255, 0, 0)
     If gForm = "line" Then AddCross gSlide, NM_B, c(0), c(1), 8, RGB(0, 112, 255)
-    st "已开始: 红十字=中心" & IIf(gForm = "line", "; 拖蓝十字到目标再点生成", "; 放好标记后点生成")
+    st "已开始: 红十字=中心" & IIf(gForm = "line", "; 拖蓝十字到目标再点生成", _
+        IIf(gForm = "trace", "; 点「开始描迹」拖洋红十字描曲线", "; 放好标记后点生成"))
     Exit Sub
 eh: st "开始失败: " & Err.Description
 End Sub
@@ -282,6 +291,116 @@ Public Sub actClearW()
     st "已清空航点"
 End Sub
 
+' ---------------- 描迹 ----------------
+' 原理与WPS版一致: 拖动图形时VBA被阻塞, 松手瞬间OnTime恢复并记录该点;
+' 「记一点」为手动兜底; 完成后点「完成」停止轮询
+
+Public Sub actTraceStart()
+    On Error GoTo eh
+    If gMover Is Nothing Then st "请先点「开始」选图形": Exit Sub
+    Dim c As Variant: c = CenterOf(gMover)
+    Dim anchor As Variant: anchor = c
+    Dim pc As Shape: Set pc = FindMark(gSlide, NM_PC)
+    If Not pc Is Nothing Then anchor = CenterOf(pc)
+    ' 恢复模式: 已有未激活点列则从末点继续
+    If (Not gTraceOn) And gTraceN >= 1 Then
+        Dim lastP As Variant: lastP = gTracePts(gTraceN)
+        AddCross gSlide, NM_TR, lastP(0), lastP(1), 9, RGB(255, 0, 255)
+        gTraceOn = True
+        ScheduleTick
+        st "继续描迹(已" & (gTraceN + 1) & "点): 拖标记松手自动记; 完成点「完成」"
+        Exit Sub
+    End If
+    Dim ex As Shape: Set ex = FindMark(gSlide, NM_TR)
+    If Not ex Is Nothing Then ex.Delete
+    AddCross gSlide, NM_TR, anchor(0), anchor(1), 9, RGB(255, 0, 255)
+    ReDim gTracePts(0 To 200)
+    gTracePts(0) = anchor
+    gTraceN = 0
+    gTraceOn = True
+    ScheduleTick
+    st "描迹中: 拖洋红十字沿曲线走, 每段松一下手即自动记点(或点「记一点」)"
+    Exit Sub
+eh: st "描迹启动失败: " & Err.Description
+End Sub
+
+Public Sub actTracePoint()
+    On Error GoTo eh
+    If Not gTraceOn Then st "请先点「开始描迹」": Exit Sub
+    Dim tr As Shape: Set tr = FindMark(gSlide, NM_TR)
+    If tr Is Nothing Then st "找不到描迹标记": Exit Sub
+    Dim c As Variant: c = CenterOf(tr)
+    Dim last As Variant: last = gTracePts(gTraceN)
+    If Sqr((c(0) - last(0)) ^ 2 + (c(1) - last(1)) ^ 2) < 0.5 Then
+        st "标记未移动, 拖到新位置再记"
+        Exit Sub
+    End If
+    PushTracePoint c
+    st "已记 " & (gTraceN + 1) & " 点; 继续拖→记; 走完点「完成」"
+    Exit Sub
+eh: st "记一点失败: " & Err.Description
+End Sub
+
+Public Sub actTraceDone()
+    On Error Resume Next
+    If Not gTraceOn And gTraceN = 0 Then st "尚未描迹": Exit Sub
+    gTraceOn = False
+    Dim i As Long
+    Dim out() As Variant
+    ReDim out(0 To gTraceN)
+    For i = 0 To gTraceN
+        out(i) = gTracePts(i)
+    Next i
+    out = SmoothMA(out)
+    gTraceN = UBound(out)
+    For i = 0 To gTraceN
+        gTracePts(i) = out(i)
+    Next i
+    st "描迹完成(" & (gTraceN + 1) & "点), 点「生成路径动画」"
+End Sub
+
+' OnTime 轮询: 松手瞬间读标记位置并记录(拖动中VBA阻塞, 恢复即记)
+Public Sub TraceTick()
+    If Not gTraceOn Then Exit Sub
+    On Error Resume Next
+    Dim tr As Shape: Set tr = FindMark(gSlide, NM_TR)
+    If Not tr Is Nothing Then
+        Dim c As Variant: c = CenterOf(tr)
+        Dim last As Variant: last = gTracePts(gTraceN)
+        If Sqr((c(0) - last(0)) ^ 2 + (c(1) - last(1)) ^ 2) > 2.5 Then
+            PushTracePoint c
+        End If
+    End If
+    ScheduleTick
+End Sub
+
+Private Sub ScheduleTick()
+    On Error Resume Next
+    Application.OnTime Now + 0.4 / 86400#, "TraceTick"
+End Sub
+
+Private Sub PushTracePoint(c As Variant)
+    If gTraceN >= 200 Then Exit Sub
+    gTraceN = gTraceN + 1
+    gTracePts(gTraceN) = Array(c(0), c(1))
+End Sub
+
+' 三点滑动平均轻量平滑(保留首尾)
+Private Function SmoothMA(pts As Variant) As Variant
+    Dim n As Long: n = UBound(pts)
+    If n < 4 Then SmoothMA = pts: Exit Function
+    Dim out() As Variant
+    ReDim out(0 To n)
+    Dim i As Long
+    out(0) = pts(0)
+    For i = 1 To n - 1
+        out(i) = Array((pts(i - 1)(0) + pts(i)(0) + pts(i + 1)(0)) / 3!, _
+                       (pts(i - 1)(1) + pts(i)(1) + pts(i + 1)(1)) / 3!)
+    Next i
+    out(n) = pts(n)
+    SmoothMA = out
+End Function
+
 Public Sub actClean()
     On Error Resume Next
     Dim s As Slide
@@ -339,6 +458,15 @@ Public Sub actGenerate()
         Mm = SnapPt(gSlide, CenterOf(pm)(0), CenterOf(pm)(1))
         Ee = SnapPt(gSlide, CenterOf(pd)(0), CenterOf(pd)(1))
         pts = SampleArc(anchor, Mm, Ee)
+    ElseIf gForm = "trace" Then
+        ' 描迹: 用已记录的点列
+        If gTraceN < 1 Then st "请先「开始描迹」并拖动标记记录点": Exit Sub
+        ReDim pts(0 To gTraceN)
+        Dim q As Long
+        For q = 0 To gTraceN
+            pts(q) = gTracePts(q)
+        Next q
+        pts = SmoothMA(pts)
     Else ' waypoints
         Dim ws As Variant
         ws = CollectW()
@@ -593,6 +721,7 @@ Public Sub CleanFlow(s As Slide)
     nm = NM_PC: KillMark s, nm
     nm = NM_PD: KillMark s, nm
     nm = NM_PM: KillMark s, nm
+    nm = NM_TR: KillMark s, nm
     DeleteByPrefix s, MK & "W"
 End Sub
 

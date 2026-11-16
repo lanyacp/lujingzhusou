@@ -4,6 +4,7 @@ Private Sub UserForm_Initialize()
     cmbForm.AddItem "抛物线"
     cmbForm.AddItem "圆弧"
     cmbForm.AddItem "航点"
+    cmbForm.AddItem "描迹"
     cmbForm.ListIndex = 0
     cmbTrig.Clear
     cmbTrig.AddItem "单击时"
@@ -44,6 +45,18 @@ End Sub
 
 Private Sub btnWC_Click()
     actClearW
+End Sub
+
+Private Sub btnTrace_Click()
+    actTraceStart
+End Sub
+
+Private Sub btnTracePt_Click()
+    actTracePoint
+End Sub
+
+Private Sub btnTraceDone_Click()
+    actTraceDone
 End Sub
 
 Private Sub btnGen_Click()

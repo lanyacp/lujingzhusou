@@ -38,7 +38,7 @@ try {
     try {
         $d.Properties.Item('Caption').Value = '路径助手'
         $d.Properties.Item('Width').Value = 258
-        $d.Properties.Item('Height').Value = 316
+        $d.Properties.Item('Height').Value = 336
     } catch {}
     foreach ($ln in $ctrlLines) {
         if ([string]::IsNullOrWhiteSpace($ln)) { continue }

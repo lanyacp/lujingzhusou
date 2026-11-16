@@ -7,14 +7,17 @@ btnD|Forms.CommandButton.1|放D点|86|58|72|22
 btnP|Forms.CommandButton.1|放P/M点|162|58|74|22
 btnW|Forms.CommandButton.1|+航点|10|84|72|22
 btnWC|Forms.CommandButton.1|清空航点|86|84|72|22
-lblDur|Forms.Label.1|时长:|10|114|36|16
-txtDur|Forms.TextBox.1||50|112|36|18
-lblTrig|Forms.Label.1|触发:|96|114|36|16
-cmbTrig|Forms.ComboBox.1||132|112|104|20
-chkSmooth|Forms.CheckBox.1|平滑曲线|10|138|90|16
-chkKeep|Forms.CheckBox.1|保留标记|104|138|84|16
-chkReplace|Forms.CheckBox.1|替换旧动画|10|156|110|16
-btnGen|Forms.CommandButton.1|生成路径动画|10|178|226|30
-btnClean|Forms.CommandButton.1|清理标记|10|214|110|22
-btnClose|Forms.CommandButton.1|关闭面板|126|214|110|22
-lblStatus|Forms.Label.1| |10|240|226|42
+btnTrace|Forms.CommandButton.1|开始描迹|10|112|72|22
+btnTracePt|Forms.CommandButton.1|记一点|86|112|72|22
+btnTraceDone|Forms.CommandButton.1|完成描迹|162|112|74|22
+lblDur|Forms.Label.1|时长:|10|142|36|16
+txtDur|Forms.TextBox.1||50|140|36|18
+lblTrig|Forms.Label.1|触发:|96|142|36|16
+cmbTrig|Forms.ComboBox.1||132|140|104|20
+chkSmooth|Forms.CheckBox.1|平滑曲线|10|166|90|16
+chkKeep|Forms.CheckBox.1|保留标记|104|166|84|16
+chkReplace|Forms.CheckBox.1|替换旧动画|10|184|110|16
+btnGen|Forms.CommandButton.1|生成路径动画|10|206|226|30
+btnClean|Forms.CommandButton.1|清理标记|10|242|110|22
+btnClose|Forms.CommandButton.1|关闭面板|126|242|110|22
+lblStatus|Forms.Label.1| |10|268|226|46
