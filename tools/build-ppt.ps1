@@ -101,6 +101,15 @@ try {
     $w = New-Object IO.StreamWriter($ne.Open()); $w.Write($xml); $w.Close()
     $zip.Dispose()
     Write-Host ('SAVED(addin): ' + $outPpam)
+
+    # 8) 注入自定义 Ribbon 选项卡(Python, 幂等)
+    $inject = Join-Path $PSScriptRoot 'inject-ppt-ribbon.py'
+    $py = 'C:\Users\Administrator\.workbuddy\binaries\python\versions\3.13.12\python.exe'
+    if (-not (Test-Path $py)) { $py = 'python' }
+    if (Test-Path $inject) {
+        & $py $inject
+        if ($LASTEXITCODE -ne 0) { Write-Host 'WARN: Ribbon 注入失败' }
+    }
 } finally {
     try { $app.Quit() } catch {}
     Start-Sleep -Milliseconds 800

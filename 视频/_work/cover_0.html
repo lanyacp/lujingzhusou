@@ -1,0 +1,84 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;}
+body{margin:0;overflow:hidden;position:relative;
+ background:linear-gradient(160deg,#064E3B 0%,#059669 56%,#10B981 100%);
+ font-family:"Microsoft YaHei","PingFang SC",sans-serif;color:#fff;}
+.tag{font-size:20px;letter-spacing:5px;color:rgba(255,255,255,.82);font-weight:700;}
+h1{font-size:72px;font-weight:900;line-height:1.3;letter-spacing:-2px;margin:0;}
+h1 em{display:block;font-style:normal;color:#FDE68A;}
+.sub{font-size:30px;color:#A7F3D0;font-weight:700;letter-spacing:1px;}
+.bar{width:76px;height:5px;border-radius:3px;background:#FDE68A;}
+.chip{display:inline-block;background:rgba(255,255,255,.16);
+ border:1px solid rgba(255,255,255,.38);padding:9px 22px;border-radius:999px;
+ font-size:23px;font-weight:700;letter-spacing:2px;}
+.step{font-size:23px;color:rgba(255,255,255,.88);line-height:2.1;}
+.foot{font-size:19px;color:rgba(255,255,255,.66);letter-spacing:1px;}
+.hint{font-size:21px;color:#FDE68A;font-weight:700;letter-spacing:1px;}
+
+body{width:1080px;height:1260px;}
+.tag{position:absolute;left:72px;top:96px;}
+h1{position:absolute;left:72px;top:168px;}
+.sub{position:absolute;left:72px;top:404px;}
+.bar{position:absolute;left:72px;top:474px;}
+.steps{position:absolute;left:72px;top:560px;}
+.scene{position:absolute;right:28px;top:520px;width:700px;height:520px;}
+.hint{position:absolute;right:74px;top:470px;}
+.chips{position:absolute;left:72px;top:1080px;display:flex;gap:14px;}
+.foot{position:absolute;left:72px;bottom:62px;}
+</style></head><body>
+<div class="tag">路径助手　·　描迹</div>
+<h1>随手画条线<em>笔尖照着走</em></h1>
+<div class="sub">轨迹自动生成，不用手拖路径</div>
+<div class="bar"></div>
+<div class="steps">
+ <div class="step">① 用曲线工具画参照线</div>
+ <div class="step">② 拖着标记沿线走一遍</div>
+ <div class="step">③ 生成路径动画</div>
+</div>
+<div class="hint">▶ 笔尖沿路径移动</div>
+<div class="scene"><svg viewBox="0 0 680 520" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+   <path d="M0,0 L0,6 L9,3 z" fill="#FDE68A"/>
+  </marker>
+ </defs>
+ <!-- 幻灯片底板 -->
+ <rect x="8" y="8" width="664" height="504" rx="18" fill="#FFFFFF" opacity="0.10"
+       stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+ <!-- 未走完的手绘参照曲线（淡蓝） -->
+ <path d="M 56 392 C 168 128 268 470 386 268 S 562 128 632 306"
+       fill="none" stroke="#93C5FD" stroke-width="9" stroke-linecap="round" opacity="0.95"/>
+ <!-- 已经走过的轨迹（红色虚线） -->
+ <path d="M 56 392 C 168 128 268 470 386 268"
+       fill="none" stroke="#FCA5A5" stroke-width="5" stroke-dasharray="13 11" stroke-linecap="round"/>
+ <!-- 轨迹采样点 -->
+ <g fill="#FCA5A5">
+  <circle cx="120" cy="285" r="5"/><circle cx="190" cy="270" r="5"/>
+  <circle cx="262" cy="342" r="5"/><circle cx="330" cy="320" r="5"/>
+ </g>
+ <!-- 起点 / 终点 -->
+ <circle cx="56" cy="392" r="11" fill="#6EE7B7"/>
+ <circle cx="632" cy="306" r="11" fill="#F87171"/>
+ <!-- 笔：两道残影 + 主体，笔尖落在轨迹末端 (386,268) -->
+ <g transform="translate(386,268) rotate(32)">
+  <g opacity="0.16" transform="translate(-84,0)">
+   <rect x="-136" y="-13" width="136" height="26" rx="7" fill="#FFFFFF"/>
+   <path d="M -6 -13 L 14 0 L -6 13 Z" fill="#FDE68A"/>
+  </g>
+  <g opacity="0.32" transform="translate(-44,0)">
+   <rect x="-136" y="-13" width="136" height="26" rx="7" fill="#FFFFFF"/>
+   <path d="M -6 -13 L 14 0 L -6 13 Z" fill="#FDE68A"/>
+  </g>
+  <rect x="-136" y="-14" width="136" height="28" rx="7" fill="#FFFFFF"
+        stroke="#059669" stroke-width="3"/>
+  <rect x="-136" y="-14" width="30" height="28" rx="7" fill="#10B981"/>
+  <rect x="-86" y="-14" width="8" height="28" fill="#A7F3D0" opacity="0.8"/>
+  <path d="M -6 -14 L 16 0 L -6 14 Z" fill="#FDE68A" stroke="#FFFFFF" stroke-width="2"/>
+ </g>
+ <!-- 前进方向 -->
+ <path d="M 430 214 L 500 176" stroke="#FDE68A" stroke-width="4"
+       marker-end="url(#ar)" stroke-linecap="round"/>
+</svg></div>
+<div class="chips"><span class="chip">手绘曲线</span><span class="chip">轨迹生成</span></div>
+<div class="foot">WPS 演示　·　精准路径动画　/　老李</div>
+</body></html>

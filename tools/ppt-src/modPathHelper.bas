@@ -1,6 +1,19 @@
 Attribute VB_Name = "modPathHelper"
 Option Explicit
 
+' Windows 定时器: PowerPoint 没有 Excel 的 Application.OnTime,
+' 描迹只能靠 API 定时器周期性 polling 标记位置(松手后自动记点)
+#If VBA7 Then
+Private Declare PtrSafe Function SetTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As LongPtr, ByVal uElapse As Long, ByVal lpTimerFunc As LongPtr) As LongPtr
+Private Declare PtrSafe Function KillTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As LongPtr) As Long
+Private gTraceTimerID As LongPtr
+#Else
+Private Declare Function SetTimer Lib "user32" (ByVal hwnd As Long, ByVal nIDEvent As Long, ByVal uElapse As Long, ByVal lpTimerFunc As Long) As Long
+Private Declare Function KillTimer Lib "user32" (ByVal hwnd As Long, ByVal nIDEvent As Long) As Long
+Private gTraceTimerID As Long
+#End If
+Private gTraceBusy As Boolean   ' 回调防重入
+
 ' =====================================================================
 '  路径助手 · PowerPoint 版 (VBA)
 '  移植自 WPS 版路径助手: 按图形中心/标记点精确生成路径动画
@@ -64,6 +77,7 @@ End Sub
 
 Public Sub Auto_Close()
     On Error Resume Next
+    StopTimer
     Dim i As Long
     For i = 1 To UserForms.Count
         Unload UserForms(i)
@@ -83,6 +97,35 @@ Private Sub BuildBar()
     cb.Visible = True
 End Sub
 
+' ---------------- Ribbon 选项卡回调(customUI) ----------------
+' 参数用 Object 而非 IRibbonControl: 避免工程缺 Office 类型库引用时整站编译失败
+Private Sub EnsurePanel()
+    On Error Resume Next
+    If Not PanelLoaded() Then ShowPanel
+End Sub
+
+Public Sub RibbonPanel(ByVal control As IRibbonControl)
+    TogglePanel
+End Sub
+Public Sub RibbonStart(ByVal control As IRibbonControl)
+    EnsurePanel: actStart
+End Sub
+Public Sub RibbonTrace(ByVal control As IRibbonControl)
+    EnsurePanel: actTraceStart
+End Sub
+Public Sub RibbonTracePt(ByVal control As IRibbonControl)
+    EnsurePanel: actTracePoint
+End Sub
+Public Sub RibbonTraceDone(ByVal control As IRibbonControl)
+    EnsurePanel: actTraceDone
+End Sub
+Public Sub RibbonGen(ByVal control As IRibbonControl)
+    EnsurePanel: actGenerate
+End Sub
+Public Sub RibbonClean(ByVal control As IRibbonControl)
+    EnsurePanel: actClean
+End Sub
+
 Public Sub SetForm(nm As String)
     Select Case nm
         Case "抛物线": gForm = "parabola"
@@ -96,7 +139,10 @@ Public Sub SetForm(nm As String)
         Dim b As Shape: Set b = FindMark(gSlide, NM_B)
         If Not b Is Nothing Then b.Delete
     End If
-    If gForm <> "trace" Then gTraceOn = False   ' 离开描迹停止轮询
+    If gForm <> "trace" Then
+        gTraceOn = False
+        StopTimer                                ' 离开描迹必须停定时器, 否则空转
+    End If
 End Sub
 
 ' ---------------- 基础工具 ----------------
@@ -202,6 +248,7 @@ End Sub
 
 Public Sub actStart()
     On Error GoTo eh
+    StopTimer: gTraceOn = False: gTraceN = 0   ' 换图形=重新开始, 停掉上一段描迹
     If ActiveWindow.Selection.Type <> ppSelectionShapes Then st "请先选中一个图形": Exit Sub
     Dim sr As ShapeRange: Set sr = ActiveWindow.Selection.ShapeRange
     If sr.Count <> 1 Then st "请只选中一个图形": Exit Sub
@@ -292,7 +339,7 @@ Public Sub actClearW()
 End Sub
 
 ' ---------------- 描迹 ----------------
-' 原理与WPS版一致: 拖动图形时VBA被阻塞, 松手瞬间OnTime恢复并记录该点;
+' 原理与WPS版一致: 拖动图形时VBA被阻塞, 松手瞬间定时器恢复并记录该点;
 ' 「记一点」为手动兜底; 完成后点「完成」停止轮询
 
 Public Sub actTraceStart()
@@ -343,7 +390,8 @@ End Sub
 
 Public Sub actTraceDone()
     On Error Resume Next
-    If Not gTraceOn And gTraceN = 0 Then st "尚未描迹": Exit Sub
+    StopTimer                      ' 先停轮询, 防止平滑期间继续记点
+    If gTraceN = 0 Then st "尚未描迹": Exit Sub
     gTraceOn = False
     Dim i As Long
     Dim out() As Variant
@@ -359,10 +407,23 @@ Public Sub actTraceDone()
     st "描迹完成(" & (gTraceN + 1) & "点), 点「生成路径动画」"
 End Sub
 
-' OnTime 轮询: 松手瞬间读标记位置并记录(拖动中VBA阻塞, 恢复即记)
-Public Sub TraceTick()
-    If Not gTraceOn Then Exit Sub
+' SetTimer 回调入口: 必须是标准模块里的 Public Sub, 签名固定
+#If VBA7 Then
+Public Sub TraceTimerProc(ByVal hwnd As LongPtr, ByVal uMsg As Long, ByVal idEvent As LongPtr, ByVal dwTime As Long)
+#Else
+Public Sub TraceTimerProc(ByVal hwnd As Long, ByVal uMsg As Long, ByVal idEvent As Long, ByVal dwTime As Long)
+#End If
     On Error Resume Next
+    If gTraceBusy Then Exit Sub   ' 防重入(窗口消息可能叠加)
+    gTraceBusy = True
+    TraceTick
+    gTraceBusy = False
+End Sub
+
+' API 定时器轮询: 松手瞬间读标记位置并记录(拖动中VBA阻塞, 恢复即记)
+Public Sub TraceTick()
+    On Error Resume Next
+    If Not gTraceOn Then Exit Sub
     Dim tr As Shape: Set tr = FindMark(gSlide, NM_TR)
     If Not tr Is Nothing Then
         Dim c As Variant: c = CenterOf(tr)
@@ -371,12 +432,20 @@ Public Sub TraceTick()
             PushTracePoint c
         End If
     End If
-    ScheduleTick
 End Sub
 
 Private Sub ScheduleTick()
     On Error Resume Next
-    Application.OnTime Now + 0.4 / 86400#, "TraceTick"
+    If gTraceTimerID <> 0 Then Exit Sub   ' 已在跑, 不重复建
+    gTraceTimerID = SetTimer(0, 0, 400, AddressOf TraceTimerProc)
+End Sub
+
+Public Sub StopTimer()
+    On Error Resume Next
+    If gTraceTimerID <> 0 Then
+        KillTimer 0, gTraceTimerID
+        gTraceTimerID = 0
+    End If
 End Sub
 
 Private Sub PushTracePoint(c As Variant)
@@ -403,6 +472,8 @@ End Function
 
 Public Sub actClean()
     On Error Resume Next
+    StopTimer
+    gTraceOn = False: gTraceN = 0
     Dim s As Slide
     For Each s In ActivePresentation.Slides
         CleanFlow s
@@ -415,6 +486,7 @@ End Sub
 
 Public Sub actGenerate()
     On Error GoTo eh
+    StopTimer: gTraceOn = False   ' 生成前先停掉描迹轮询
     If gMover Is Nothing Then st "请先点「开始」": Exit Sub
     Dim pres As Presentation: Set pres = ActivePresentation
     Dim sw As Single, shh As Single
@@ -466,7 +538,7 @@ Public Sub actGenerate()
         For q = 0 To gTraceN
             pts(q) = gTracePts(q)
         Next q
-        pts = SmoothMA(pts)
+        ' 描迹点已在「完成描迹」时平滑过, 这里不再重复平滑
     Else ' waypoints
         Dim ws As Variant
         ws = CollectW()
@@ -793,3 +865,5 @@ done:
     Print #f, res
     Close #f
 End Sub
+
+' 深度自检: 逐个调用面板按钮过程, 把每步结果写文件, 用于定位编译/运行错误

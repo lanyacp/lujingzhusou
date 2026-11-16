@@ -19,7 +19,11 @@ copy /y "%SRC%PathHelper.ppam" "%DEST%\PathHelper.ppam" >nul
 
 reg add "HKCU\Software\Microsoft\Office\16.0\PowerPoint\AddIns\ABPathHelper" /v Path /t REG_SZ /d "%DEST%\PathHelper.ppam" /f >nul
 reg add "HKCU\Software\Microsoft\Office\16.0\PowerPoint\AddIns\ABPathHelper" /v Autoload /t REG_DWORD /d 1 /f >nul
-reg add "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\ABPathHelper" /v Path /t REG_SZ /d "%DEST%" /f >nul
+rem Office 只识别 LocationN 形式的信任位置键, 用高编号避免占用系统默认位置
+reg add "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\Location88" /v Path /t REG_SZ /d "%DEST%" /f >nul
+reg add "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\Location88" /v Description /t REG_SZ /d "路径助手 PowerPoint 加载项" /f >nul
+reg add "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\Location88" /v AllowSubfolders /t REG_DWORD /d 1 /f >nul
+reg add "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\Location88" /v Date /t REG_SZ /d "2026-11-16" /f >nul
 
 echo 安装完成!
 echo.
@@ -44,6 +48,7 @@ setlocal
 echo 卸载 路径助手 PowerPoint 常驻版...
 reg delete "HKCU\Software\Microsoft\Office\16.0\PowerPoint\AddIns\ABPathHelper" /f >nul 2>&1
 reg delete "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\ABPathHelper" /f >nul 2>&1
+reg delete "HKCU\Software\Microsoft\Office\16.0\PowerPoint\Trusted Locations\Location88" /f >nul 2>&1
 if exist "%APPDATA%\ABPathHelper" rmdir /s /q "%APPDATA%\ABPathHelper"
 echo.
 echo 卸载完成, 重启 PowerPoint 生效.
