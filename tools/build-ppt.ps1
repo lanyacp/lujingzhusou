@@ -81,11 +81,26 @@ try {
         Write-Host 'SELFTEST: no result file (macro did not run?)'
     }
 
-    # 7) save as .pptm (25 = ppSaveAsOpenXMLPresentationMacroEnabled)
+    # 7) save as .pptm (tool file) AND .ppam (resident add-in)
     $pres.SaveAs($outPptm, 25)
-    $pres.Saved = -1
     Write-Host ('SAVED: ' + $outPptm)
+    $outPpam = Join-Path $outDir 'PathHelper.ppam'
+    if (Test-Path $outPpam) { Remove-Item -Force $outPpam }
+    $pres.SaveAs($outPpam, 25)
+    $pres.Saved = -1
     $pres.Close()
+    # 修正内容类型: pptm -> addin (否则 PowerPoint 拒绝按加载项加载)
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::Open($outPpam, 'Update')
+    $e = $zip.GetEntry('[Content_Types].xml')
+    $r = New-Object IO.StreamReader($e.Open()); $xml = $r.ReadToEnd(); $r.Close()
+    $xml = $xml -replace 'application/vnd\.ms-powerpoint\.presentation\.macroEnabled\.main\+xml', 'application/vnd.ms-powerpoint.addin.macroEnabled.main+xml'
+    $e.Delete()
+    $ne = $zip.CreateEntry('[Content_Types].xml')
+    $w = New-Object IO.StreamWriter($ne.Open()); $w.Write($xml); $w.Close()
+    $zip.Dispose()
+    Write-Host ('SAVED(addin): ' + $outPpam)
 } finally {
     try { $app.Quit() } catch {}
     Start-Sleep -Milliseconds 800

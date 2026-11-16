@@ -33,6 +33,50 @@ eh:
            vbExclamation, "路径助手"
 End Sub
 
+Public Function PanelLoaded() As Boolean
+    Dim i As Long
+    For i = 1 To UserForms.Count
+        If UserForms(i).Name = "frmPanel" Then PanelLoaded = True: Exit Function
+    Next i
+End Function
+
+Public Sub TogglePanel()
+    If PanelLoaded() Then
+        Unload frmPanel
+    Else
+        ShowPanel
+    End If
+End Sub
+
+' ---------------- 加载项(.ppam)支持 ----------------
+' ppam 加载时自动运行: 建"路径助手"工具条按钮 + 自动弹出面板
+
+Public Sub Auto_Open()
+    On Error Resume Next
+    BuildBar   ' 只建常驻工具条; 面板用工具条按钮一键开, 跨所有PPT有效
+End Sub
+
+Public Sub Auto_Close()
+    On Error Resume Next
+    Dim i As Long
+    For i = 1 To UserForms.Count
+        Unload UserForms(i)
+    Next i
+    Application.CommandBars("ABPathBar").Delete
+End Sub
+
+Private Sub BuildBar()
+    On Error Resume Next
+    Application.CommandBars("ABPathBar").Delete
+    Dim cb As Object, btn As Object
+    Set cb = Application.CommandBars.Add("ABPathBar", 1, False, True)  ' msoBarTop, Temporary
+    Set btn = cb.Controls.Add(1)  ' msoControlButton
+    btn.Caption = "路径助手面板"
+    btn.OnAction = "TogglePanel"
+    btn.Style = 2                  ' msoButtonCaption
+    cb.Visible = True
+End Sub
+
 Public Sub SetForm(nm As String)
     Select Case nm
         Case "抛物线": gForm = "parabola"
