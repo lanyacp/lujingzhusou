@@ -147,6 +147,28 @@ Private Function isMark(sh As Shape) As Boolean
     isMark = (Left$(sh.Name, 8) = MK)
 End Function
 
+' 组合内图形提升为顶层图形(PowerPoint版: 逐级上溯 ParentGroup)
+Private Function TopLevel(sh As Shape) As Shape
+    Dim guard As Long, p As Object
+    Do While guard < 10
+        Set p = Nothing
+        On Error Resume Next
+        Set p = sh.ParentGroup
+        On Error GoTo 0
+        If p Is Nothing Then Exit Do
+        Set sh = p
+        guard = guard + 1
+    Loop
+    Set TopLevel = sh
+End Function
+
+' 失败提示: 状态栏 + 弹窗(错误号+描述, 便于用户反馈精确定位)
+Public Sub stErr(msg As String)
+    On Error Resume Next
+    st msg
+    MsgBox msg, vbExclamation, "路径助手"
+End Sub
+
 Private Function CenterOf(sh As Shape) As Variant
     CenterOf = Array(sh.Left + sh.Width / 2!, sh.Top + sh.Height / 2!)
 End Function
@@ -223,7 +245,7 @@ Public Sub actCenterCross()
     Dim sh As Shape, c As Variant, nm As String, ex As Shape, nOn As Long, nOff As Long
     Dim i As Long
     For i = 1 To sr.Count
-        Set sh = sr(i)
+        Set sh = TopLevel(sr(i))
         If Not isMark(sh) Then
             nm = MK & "C_" & sh.Id
             Set ex = FindMark(sh.Parent, nm)
@@ -239,7 +261,7 @@ Public Sub actCenterCross()
     Next i
     If nOff > 0 Then st "已移除 " & nOff & " 个中心十字" Else st "已为 " & nOn & " 个图形加中心十字(吸附目标)"
     Exit Sub
-eh: st "中心十字失败: " & Err.Description
+eh: stErr "中心十字失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 Public Sub actStart()
@@ -248,7 +270,7 @@ Public Sub actStart()
     If ActiveWindow.Selection.Type <> ppSelectionShapes Then st "请先选中一个图形": Exit Sub
     Dim sr As ShapeRange: Set sr = ActiveWindow.Selection.ShapeRange
     If sr.Count <> 1 Then st "请只选中一个图形": Exit Sub
-    Dim sh As Shape: Set sh = sr(1)
+    Dim sh As Shape: Set sh = TopLevel(sr(1))
     If isMark(sh) Then st "选中的是辅助标记, 请选普通图形": Exit Sub
     Set gMover = sh
     Set gSlide = sh.Parent
@@ -260,7 +282,7 @@ Public Sub actStart()
     st "已开始: 红十字=中心" & IIf(gForm = "line", "; 拖蓝十字到目标再点生成", _
         IIf(gForm = "trace", "; 点「开始描迹」拖洋红十字描曲线", "; 放好标记后点生成"))
     Exit Sub
-eh: st "开始失败: " & Err.Description
+eh: stErr "开始失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 Public Sub actPlaceC()
@@ -295,7 +317,7 @@ Private Sub PlaceCommon(nm As String, ox As Single, oy As Single, rgbv As Long, 
     AddCross gSlide, nm, tx, ty, 7, rgbv
     st "已放 " & tag & atShape & ", 可拖动微调"
     Exit Sub
-eh: st "放置失败: " & Err.Description
+eh: stErr "放置失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 Public Sub actAddW()
@@ -317,7 +339,7 @@ Public Sub actAddW()
     AddCross gSlide, NM_WP & n & "__", tx, ty, 7, RGB(0, 168, 192)
     st "已加航点 W" & n & IIf(o Is Nothing, "", "(在所选图形中心)")
     Exit Sub
-eh: st "加航点失败: " & Err.Description
+eh: stErr "加航点失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 Private Function CountW() As Long
@@ -364,7 +386,7 @@ Public Sub actTraceStart()
     ScheduleTick
     st "描迹中: 拖洋红十字沿曲线走, 每段松一下手即自动记点(或点「记一点」)"
     Exit Sub
-eh: st "描迹启动失败: " & Err.Description
+eh: stErr "描迹启动失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 Public Sub actTracePoint()
@@ -381,7 +403,7 @@ Public Sub actTracePoint()
     PushTracePoint c
     st "已记 " & (gTraceN + 1) & " 点; 继续拖→记; 走完点「完成」"
     Exit Sub
-eh: st "记一点失败: " & Err.Description
+eh: stErr "记一点失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 Public Sub actTraceDone()
@@ -562,7 +584,7 @@ Public Sub actGenerate()
     st "已生成 " & n & " 段动画(" & (UBound(pts) + 1) & "点), 已自动吸附最近中心"
     gMover.Select Replace:=msoTrue
     Exit Sub
-eh: st "生成失败: " & Err.Description
+eh: stErr "生成失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 ' 多段直线接力: 每段一个 effect, 首段指定触发, 其余接上一段
