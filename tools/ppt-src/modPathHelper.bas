@@ -38,8 +38,8 @@ Public gTracePts() As Variant
 
 Public Sub ShowPanel()
     On Error GoTo eh
-    frmPanel.StartUpPosition = 1   ' CenterOwner
-    frmPanel.Show vbModeless
+    UserForm1.StartUpPosition = 1   ' CenterOwner
+    UserForm1.Show vbModeless
     Exit Sub
 eh:
     MsgBox "面板启动失败: " & Err.Description & vbCrLf & vbCrLf & _
@@ -51,13 +51,13 @@ End Sub
 Public Function PanelLoaded() As Boolean
     Dim i As Long
     For i = 1 To UserForms.Count
-        If UserForms(i).Name = "frmPanel" Then PanelLoaded = True: Exit Function
+        If UserForms(i).Name = "UserForm1" Then PanelLoaded = True: Exit Function
     Next i
 End Function
 
 Public Sub TogglePanel()
     If PanelLoaded() Then
-        Unload frmPanel
+        Unload UserForm1
     Else
         ShowPanel
     End If
@@ -217,8 +217,8 @@ End Function
 
 Public Sub st(msg As String)
     On Error Resume Next
-    frmPanel.lblStatus.Caption = msg
-    frmPanel.Caption = "路径助手 - " & msg
+    UserForm1.lblStatus.Caption = msg
+    UserForm1.Caption = "路径助手 - " & msg
 End Sub
 
 Private Function SelOther() As Shape
@@ -612,24 +612,24 @@ End Function
 
 Private Function OptDur() As Single
     On Error Resume Next
-    OptDur = CSng(frmPanel.txtDur.Text)
+    OptDur = CSng(UserForm1.txtDur.Text)
     If OptDur <= 0 Then OptDur = 2!
 End Function
 Private Function OptSmooth() As Boolean
     On Error Resume Next
-    OptSmooth = frmPanel.chkSmooth.Value
+    OptSmooth = UserForm1.chkSmooth.Value
 End Function
 Private Function OptKeep() As Boolean
     On Error Resume Next
-    OptKeep = frmPanel.chkKeep.Value
+    OptKeep = UserForm1.chkKeep.Value
 End Function
 Private Function OptReplace() As Boolean
     On Error Resume Next
-    OptReplace = frmPanel.chkReplace.Value
+    OptReplace = UserForm1.chkReplace.Value
 End Function
 Private Function TrigVal() As Long
     On Error Resume Next
-    Dim v As String: v = frmPanel.cmbTrig.Value
+    Dim v As String: v = UserForm1.cmbTrig.Value
     If v = "与上一动画同时" Then
         TrigVal = msoAnimTriggerWithPrevious
     ElseIf v = "上一动画之后" Then

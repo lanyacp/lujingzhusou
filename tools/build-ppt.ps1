@@ -31,9 +31,8 @@ try {
     $mod.Name = 'modPathHelper'
     $mod.CodeModule.AddFromString($modCode)
 
-    # 4) build UserForm
+    # 4) build UserForm — 保持默认名 UserForm1(改名在部分Office上会失败, 代码统一引用 UserForm1)
     $frm = $vbp.VBComponents.Add(3)   # vbext_ct_MSForm
-    $frm.Name = 'frmPanel'
     $d = $frm.Designer
     try {
         $d.Properties.Item('Caption').Value = '路径助手'
@@ -86,10 +85,20 @@ try {
     Write-Host ('SAVED: ' + $outPptm)
     $outPpam = Join-Path $outDir 'PathHelper.ppam'
     if (Test-Path $outPpam) { Remove-Item -Force $outPpam }
-    # 26 = ppSaveAsOpenXMLAddIn: PowerPoint 原生写出正确的加载项内容类型
-    $pres.SaveAs($outPpam, 26)
+    $pres.SaveAs($outPpam, 25)
     $pres.Saved = -1
     $pres.Close()
+    # 修正内容类型: presentation.macroEnabled -> addin.macroEnabled (ppam 加载项的合法类型)
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [IO.Compression.ZipFile]::Open($outPpam, 'Update')
+    $e = $zip.GetEntry('[Content_Types].xml')
+    $r = New-Object IO.StreamReader($e.Open()); $xml = $r.ReadToEnd(); $r.Close()
+    $xml = $xml -replace 'application/vnd\.ms-powerpoint\.presentation\.macroEnabled\.main\+xml', 'application/vnd.ms-powerpoint.addin.macroEnabled.main+xml'
+    $e.Delete()
+    $ne = $zip.CreateEntry('[Content_Types].xml')
+    $w = New-Object IO.StreamWriter($ne.Open()); $w.Write($xml); $w.Close()
+    $zip.Dispose()
     Write-Host ('SAVED(addin): ' + $outPpam)
 
     # 8) 注入自定义 Ribbon 选项卡(Python, 幂等)
