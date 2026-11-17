@@ -3,15 +3,11 @@ Option Explicit
 
 ' Windows 定时器: PowerPoint 没有 Excel 的 Application.OnTime,
 ' 描迹只能靠 API 定时器周期性 polling 标记位置(松手后自动记点)
-#If VBA7 Then
+' 注: 仅支持 VBA7(Office 2010+), 不再保留 32 位遗留分支 ——
+'     "只包裹签名行"的条件编译写法会让 AddressOf 解析失败(Sub or function not defined)
 Private Declare PtrSafe Function SetTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As LongPtr, ByVal uElapse As Long, ByVal lpTimerFunc As LongPtr) As LongPtr
 Private Declare PtrSafe Function KillTimer Lib "user32" (ByVal hwnd As LongPtr, ByVal nIDEvent As LongPtr) As Long
 Private gTraceTimerID As LongPtr
-#Else
-Private Declare Function SetTimer Lib "user32" (ByVal hwnd As Long, ByVal nIDEvent As Long, ByVal uElapse As Long, ByVal lpTimerFunc As Long) As Long
-Private Declare Function KillTimer Lib "user32" (ByVal hwnd As Long, ByVal nIDEvent As Long) As Long
-Private gTraceTimerID As Long
-#End If
 Private gTraceBusy As Boolean   ' 回调防重入
 
 ' =====================================================================
@@ -407,12 +403,8 @@ Public Sub actTraceDone()
     st "描迹完成(" & (gTraceN + 1) & "点), 点「生成路径动画」"
 End Sub
 
-' SetTimer 回调入口: 必须是标准模块里的 Public Sub, 签名固定
-#If VBA7 Then
+' SetTimer 回调入口: 必须是标准模块里的 Public Sub, 签名固定(VBA7 LongPtr)
 Public Sub TraceTimerProc(ByVal hwnd As LongPtr, ByVal uMsg As Long, ByVal idEvent As LongPtr, ByVal dwTime As Long)
-#Else
-Public Sub TraceTimerProc(ByVal hwnd As Long, ByVal uMsg As Long, ByVal idEvent As Long, ByVal dwTime As Long)
-#End If
     On Error Resume Next
     If gTraceBusy Then Exit Sub   ' 防重入(窗口消息可能叠加)
     gTraceBusy = True
