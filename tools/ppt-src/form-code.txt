@@ -13,6 +13,9 @@ Private Sub UserForm_Initialize()
     cmbTrig.ListIndex = 0
     txtDur.Text = "2"
     lblStatus.Caption = "选中图形点「开始」"
+    ' 标题与窗口尺寸在这里设(构建期改属性在部分 Office 上会静默失败)
+    Me.Caption = "路径助手"
+    Me.Width = 252: Me.Height = 350
 End Sub
 
 Private Sub cmbForm_Change()

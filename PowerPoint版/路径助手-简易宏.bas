@@ -20,6 +20,11 @@ Option Explicit
 
 Public Sub 精确路径_中心到中心()
     On Error GoTo eh
+    ' 空选择时读 ShapeRange 会抛无法容错的 COM 错误, 必须先判 Type
+    If ActiveWindow.Selection.Type <> ppSelectionShapes Then
+        MsgBox "请按顺序选中【两个】图形：先选要移动的，再 Ctrl+选目标。", vbExclamation, "路径助手"
+        Exit Sub
+    End If
     Dim sr As ShapeRange
     Set sr = ActiveWindow.Selection.ShapeRange
     If sr.Count <> 2 Then
@@ -29,6 +34,15 @@ Public Sub 精确路径_中心到中心()
     Dim mover As Shape, target As Shape
     Set mover = sr(1)
     Set target = sr(2)
+    ' 选区按层叠顺序返回, 与点击顺序可能相反: 让用户确认方向(否=对调, 取消=不做)
+    Dim r As VbMsgBoxResult
+    r = MsgBox("将生成路径:  [" & mover.Name & "] 中心  →  [" & target.Name & "] 中心" & vbCrLf & vbCrLf & _
+               "方向对吗?  【是】生成   【否】对调方向   【取消】不做", _
+               vbYesNoCancel + vbQuestion, "路径助手")
+    If r = vbCancel Then Exit Sub
+    If r = vbNo Then
+        Dim tmp As Shape: Set tmp = mover: Set mover = target: Set target = tmp
+    End If
     Dim sw As Single, shh As Single
     sw = ActivePresentation.PageSetup.SlideWidth
     shh = ActivePresentation.PageSetup.SlideHeight
@@ -43,6 +57,10 @@ End Sub
 
 Public Sub 精确路径_到坐标()
     On Error GoTo eh
+    If ActiveWindow.Selection.Type <> ppSelectionShapes Then
+        MsgBox "请只选中【一个】要移动的图形。", vbExclamation, "路径助手"
+        Exit Sub
+    End If
     Dim sr As ShapeRange
     Set sr = ActiveWindow.Selection.ShapeRange
     If sr.Count <> 1 Then
@@ -53,6 +71,7 @@ Public Sub 精确路径_到坐标()
     Dim tx As String, ty As String, xx As Single, yy As Single
     tx = InputBox("目标点 X 坐标（磅，0~" & ActivePresentation.PageSetup.SlideWidth & "）", "路径助手", "600")
     ty = InputBox("目标点 Y 坐标（磅，0~" & ActivePresentation.PageSetup.SlideHeight & "）", "路径助手", "300")
+    If Not IsNumeric(tx) Or Not IsNumeric(ty) Then Exit Sub   ' 取消/无效输入: 安静退出
     xx = CSng(tx): yy = CSng(ty)
     Dim sw As Single, shh As Single
     sw = ActivePresentation.PageSetup.SlideWidth: shh = ActivePresentation.PageSetup.SlideHeight
@@ -66,6 +85,7 @@ End Sub
 
 Public Sub 删除本图形动画()
     On Error Resume Next
+    If ActiveWindow.Selection.Type <> ppSelectionShapes Then Exit Sub
     Dim sr As ShapeRange: Set sr = ActiveWindow.Selection.ShapeRange
     Dim i As Long
     For i = sr.Count To 1 Step -1

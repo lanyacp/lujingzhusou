@@ -34,6 +34,10 @@ Public gTraceOn As Boolean
 Public gTraceN As Long
 Public gTracePts() As Variant
 
+' 航点排序暂存(必须放在顶部声明区: VBA 不认过程之间的模块级声明)
+Private shsTmp(512) As Shape
+Private tsSh As Shape
+
 ' ---------------- 面板 ----------------
 
 Public Sub ShowPanel()
@@ -48,14 +52,15 @@ eh:
            vbExclamation, "路径助手"
 End Sub
 
+' 面板只有一个窗体: 用 UserForms.Count 判断, 绝不按 UserForms(i) 下标访问
+' (按下标枚举该集合在窗体刚显示/关闭的瞬间会间歇性抛"运行时错误9: 下标越界")
 Public Function PanelLoaded() As Boolean
-    Dim i As Long
-    For i = 1 To UserForms.Count
-        If UserForms(i).Name = "UserForm1" Then PanelLoaded = True: Exit Function
-    Next i
+    On Error Resume Next
+    PanelLoaded = (UserForms.Count > 0)
 End Function
 
 Public Sub TogglePanel()
+    On Error Resume Next
     If PanelLoaded() Then
         Unload UserForm1
     Else
@@ -74,10 +79,7 @@ End Sub
 Public Sub Auto_Close()
     On Error Resume Next
     StopTimer
-    Dim i As Long
-    For i = 1 To UserForms.Count
-        Unload UserForms(i)
-    Next i
+    Unload UserForm1
     Application.CommandBars("ABPathBar").Delete
 End Sub
 
@@ -162,6 +164,28 @@ Private Function TopLevel(sh As Shape) As Shape
     Set TopLevel = sh
 End Function
 
+' 移动图形是否仍存在(被删后读其属性会出错)
+Private Function MoverAlive() As Boolean
+    On Error Resume Next
+    If gMover Is Nothing Or gSlide Is Nothing Then Exit Function
+    Dim pid As Long: pid = gMover.Id
+    If Err.Number <> 0 Then Exit Function
+    Dim i As Long
+    For i = 1 To gSlide.Shapes.Count
+        If gSlide.Shapes(i).Id = pid Then MoverAlive = True: Exit Function
+    Next i
+End Function
+
+' 图形已被删除时清空状态, 让各入口落到"请先点「开始」"的友好提示
+Private Sub RequireMoverOK()
+    If gMover Is Nothing Then Exit Sub
+    If Not MoverAlive() Then
+        Set gMover = Nothing: Set gSlide = Nothing
+        gTraceOn = False: gTraceN = 0
+        StopTimer
+    End If
+End Sub
+
 ' 失败提示: 状态栏 + 弹窗(错误号+描述, 便于用户反馈精确定位)
 Public Sub stErr(msg As String)
     On Error Resume Next
@@ -182,7 +206,7 @@ Public Function FindMark(s As Slide, nm As String) As Shape
     Next i
 End Function
 
-Public Function AddCross(s As Slide, nm As String, cx As Single, cy As Single, sz As Single, rgbv As Long) As Shape
+Public Function AddCross(ByVal s As Slide, ByVal nm As String, ByVal cx As Single, ByVal cy As Single, ByVal sz As Single, ByVal rgbv As Long) As Shape
     Dim sh As Shape
     Set sh = s.Shapes.AddShape(msoShapeCross, cx - sz / 2!, cy - sz / 2!, sz, sz)
     sh.Name = nm
@@ -193,10 +217,14 @@ Public Function AddCross(s As Slide, nm As String, cx As Single, cy As Single, s
 End Function
 
 ' 吸附: 找 12pt 内最近的目标中心(普通图形 或 中心十字), 返回 Variant(x,y); 无则返回原点值
-Private Function SnapPt(s As Slide, x As Single, y As Single) As Variant
+Private Function SnapPt(ByVal s As Slide, ByVal x As Single, ByVal y As Single) As Variant
     Dim best As Variant, bd As Single
     bd = 12!
     Dim i As Long, sh As Shape, c As Variant, d As Single
+    Dim myId As Long: myId = -1
+    On Error Resume Next
+    If Not gMover Is Nothing Then myId = gMover.Id   ' 删除后读取会出错, 保持 -1
+    On Error GoTo 0
     For i = 1 To s.Shapes.Count
         Set sh = s.Shapes(i)
         Dim isCross As Boolean
@@ -205,6 +233,8 @@ Private Function SnapPt(s As Slide, x As Single, y As Single) As Variant
             ' 中心十字是吸附目标
         ElseIf Left$(sh.Name, 8) = MK Then
             GoTo nxt
+        ElseIf myId <> -1 And sh.Id = myId Then
+            GoTo nxt                                 ' 不吸附到移动图形自己
         End If
         c = CenterOf(sh)
         d = Sqr((c(0) - x) ^ 2 + (c(1) - y) ^ 2)
@@ -297,6 +327,7 @@ End Sub
 
 Private Sub PlaceCommon(nm As String, ox As Single, oy As Single, rgbv As Long, tag As String)
     On Error GoTo eh
+    RequireMoverOK
     If gMover Is Nothing Then st "请先点「开始」": Exit Sub
     Dim c As Variant: c = CenterOf(gMover)
     Dim a As Variant: a = c
@@ -322,6 +353,7 @@ End Sub
 
 Public Sub actAddW()
     On Error GoTo eh
+    RequireMoverOK
     If gMover Is Nothing Then st "请先点「开始」": Exit Sub
     Dim c As Variant: c = CenterOf(gMover)
     Dim a As Variant: a = c
@@ -347,13 +379,17 @@ Private Function CountW() As Long
     If gSlide Is Nothing Then Exit Function
     For i = 1 To gSlide.Shapes.Count
         Set sh = gSlide.Shapes(i)
-        If Left$(sh.Name, 10) = (MK & "W") Then CountW = CountW + 1
+        If Left$(sh.Name, Len(MK) + 1) = (MK & "W") Then CountW = CountW + 1
     Next i
 End Function
 
 Public Sub actClearW()
+    On Error GoTo eh
+    If gSlide Is Nothing Then st "请先点「开始」": Exit Sub
     DeleteByPrefix gSlide, MK & "W"
     st "已清空航点"
+    Exit Sub
+eh: stErr "清空航点失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
 ' ---------------- 描迹 ----------------
@@ -362,6 +398,7 @@ End Sub
 
 Public Sub actTraceStart()
     On Error GoTo eh
+    RequireMoverOK
     If gMover Is Nothing Then st "请先点「开始」选图形": Exit Sub
     Dim c As Variant: c = CenterOf(gMover)
     Dim anchor As Variant: anchor = c
@@ -501,6 +538,7 @@ End Sub
 Public Sub actGenerate()
     On Error GoTo eh
     StopTimer: gTraceOn = False   ' 生成前先停掉描迹轮询
+    RequireMoverOK
     If gMover Is Nothing Then st "请先点「开始」": Exit Sub
     Dim pres As Presentation: Set pres = ActivePresentation
     Dim sw As Single, shh As Single
@@ -581,31 +619,36 @@ Public Sub actGenerate()
     n = BuildEffects(gSlide, gMover, pts, TrigVal(), OptDur())
 
     If Not OptKeep() Then CleanFlow gSlide
-    st "已生成 " & n & " 段动画(" & (UBound(pts) + 1) & "点), 已自动吸附最近中心"
+    st "已生成路径动画(" & (UBound(pts) + 1) & " 点), 已自动吸附最近中心"
     gMover.Select Replace:=msoTrue
     Exit Sub
 eh: stErr "生成失败[" & Err.Number & "]: " & Err.Description
 End Sub
 
-' 多段直线接力: 每段一个 effect, 首段指定触发, 其余接上一段
-Public Function BuildEffects(s As Slide, sh As Shape, pts As Variant, firstTrig As Long, totalDur As Single) As Long
+' 单条自定义路径: 所有点合成一个 path(相对图形原始位置的位移, 单位=幻灯片宽/高的比例)
+' 相比逐段直线接力: 只有一个动画, 曲线平滑无停顿, 动画窗格干净
+Public Function BuildEffects(ByVal s As Slide, ByVal sh As Shape, ByVal pts As Variant, ByVal firstTrig As Long, ByVal totalDur As Single) As Long
     Dim pres As Presentation: Set pres = s.Parent
     Dim sw As Single, shh As Single
     sw = pres.PageSetup.SlideWidth: shh = pres.PageSetup.SlideHeight
     Dim n As Long: n = UBound(pts)
-    Dim dur As Single: dur = totalDur / n
-    Dim i As Long, dx As Single, dy As Single, eff As Effect, beh As AnimationBehavior, trig As Long
+    Dim pth As String, i As Long
+    pth = "M 0 0 "
     For i = 1 To n
-        If i = 1 Then trig = firstTrig Else trig = msoAnimTriggerAfterPrevious
-        dx = (pts(i)(0) - pts(i - 1)(0)) / sw
-        dy = (pts(i)(1) - pts(i - 1)(1)) / shh
-        Set eff = s.TimeLine.MainSequence.AddEffect(sh, msoAnimEffectCustom, , trig)
-        Set beh = eff.Behaviors.Add(msoAnimTypeMotion)
-        beh.MotionEffect.FromX = 0: beh.MotionEffect.FromY = 0
-        beh.MotionEffect.ToX = dx: beh.MotionEffect.ToY = dy
-        eff.Timing.Duration = dur
+        pth = pth & "L " & FmtP((pts(i)(0) - pts(0)(0)) / sw) & " " & FmtP((pts(i)(1) - pts(0)(1)) / shh) & " "
     Next i
-    BuildEffects = n
+    pth = pth & "E"
+    Dim eff As Effect, beh As AnimationBehavior
+    Set eff = s.TimeLine.MainSequence.AddEffect(sh, msoAnimEffectCustom, , firstTrig)
+    Set beh = eff.Behaviors.Add(msoAnimTypeMotion)
+    beh.MotionEffect.Path = pth
+    eff.Timing.Duration = totalDur
+    BuildEffects = 1
+End Function
+
+' 路径坐标转字符串(固定 6 位小数, 防区域设置用逗号)
+Private Function FmtP(ByVal v As Single) As String
+    FmtP = Replace(Format$(v, "0.000000"), ",", ".")
 End Function
 
 ' ---------------- 选项读取(容错) ----------------
@@ -664,7 +707,14 @@ Private Function Atan2(ByVal y As Double, ByVal x As Double) As Double
     ElseIf x < 0 Then
         If y >= 0 Then Atan2 = Atn(y / x) + 3.14159265358979 Else Atan2 = Atn(y / x) - 3.14159265358979
     Else
-        If y > 0 Then Atan2 = 1.5707963267949 ElseIf y < 0 Then Atan2 = -1.5707963267949 Else Atan2 = 0
+        ' 注意: 单行 If 不能用 ElseIf(VBA 语法错误), 必须用块结构
+        If y > 0 Then
+            Atan2 = 1.5707963267949
+        ElseIf y < 0 Then
+            Atan2 = -1.5707963267949
+        Else
+            Atan2 = 0
+        End If
     End If
 End Function
 
@@ -733,7 +783,7 @@ Private Function SmoothSubdiv(pts As Variant) As Variant
     SmoothSubdiv = out
 End Function
 
-Private Function CR1(a As Single, b As Single, c As Single, d As Single, t As Single) As Single
+Private Function CR1(ByVal a As Single, ByVal b As Single, ByVal c As Single, ByVal d As Single, ByVal t As Single) As Single
     Dim t2 As Single, t3 As Single
     t2 = t * t: t3 = t2 * t
     CR1 = 0.5! * ((2! * b) + (-a + c) * t + (2! * a - 5! * b + 4! * c - d) * t2 + (-a + 3! * b - 3! * c + d) * t3)
@@ -761,11 +811,11 @@ Private Function CollectW() As Variant
     Dim n As Long: n = 0
     Dim i As Long, sh As Shape, nm As String, j As Long
     ' 按编号排序收集
-    Dim idxs(64) As Long, names(64) As String, cnt As Long
+    Dim idxs(512) As Long, cnt As Long
     For i = 1 To gSlide.Shapes.Count
         Set sh = gSlide.Shapes(i)
         nm = sh.Name
-        If Left$(nm, 10) = (MK & "W") Then
+        If Left$(nm, Len(MK) + 1) = (MK & "W") Then
             cnt = cnt + 1
             idxs(cnt) = CLng(Val(Mid$(nm, 11)))
             Set shsTmp(cnt) = sh
@@ -792,10 +842,6 @@ Private Function CollectW() As Variant
     Next i
     CollectW = out
 End Function
-
-' 模块级暂存(排序用)
-Private shsTmp(64) As Shape
-Private tsSh As Shape
 
 ' ---------------- 清理 ----------------
 
@@ -852,21 +898,26 @@ Public Sub SelfTest()
     n = BuildEffects(s, sh, pts, msoAnimTriggerOnPageClick, 2!)
     Dim seq As Sequence: Set seq = s.TimeLine.MainSequence
     Dim eff As Effect: Set eff = seq(seq.Count)
-    Dim tox As Single, toy As Single
+    Dim pth As String, mb As AnimationBehavior
     Dim i As Long
     For i = 1 To eff.Behaviors.Count
-        If eff.Behaviors(i).Type = msoAnimTypeMotion Then
-            tox = eff.Behaviors(i).MotionEffect.ToX
-            toy = eff.Behaviors(i).MotionEffect.ToY
-        End If
+        If eff.Behaviors(i).Type = msoAnimTypeMotion Then Set mb = eff.Behaviors(i)
     Next i
+    If Not mb Is Nothing Then pth = mb.MotionEffect.Path
     Dim expX As Single, expY As Single
     expX = 300! / pres.PageSetup.SlideWidth
     expY = 140! / pres.PageSetup.SlideHeight
+    ' 从 path 里取 L 后第一个坐标对(路径单位=幻灯片宽/高的比例)
+    Dim tox As Single, toy As Single, tk() As String, j As Long
+    tox = -1: toy = -1
+    tk = Split(pth, " ")
+    For j = 0 To UBound(tk) - 2
+        If tk(j) = "L" Then tox = Val(tk(j + 1)): toy = Val(tk(j + 2))
+    Next j
     If n = 1 And Abs(tox - expX) < 0.0001 And Abs(toy - expY) < 0.0001 Then
-        res = "PASS n=" & n & " ToX=" & tox & " ToY=" & toy
+        res = "PASS n=" & n & " L=" & tox & "," & toy
     Else
-        res = "FAIL n=" & n & " ToX=" & tox & "/" & expX & " ToY=" & toy & "/" & expY
+        res = "FAIL n=" & n & " path=[" & pth & "] exp=" & expX & "," & expY
     End If
     s.Delete
     GoTo done
