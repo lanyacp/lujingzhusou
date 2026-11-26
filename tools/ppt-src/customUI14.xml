@@ -6,29 +6,29 @@
         <group id="abpGrpPanel" label="面板">
           <button id="abpPanel" label="路径助手面板" size="large"
                   imageMso="ControlAddInsDialog" onAction="RibbonPanel"
-                  superTip="打开或收起悬浮控制面板"/>
+                  supertip="打开或收起悬浮控制面板"/>
         </group>
         <group id="abpGrpFlow" label="描迹流程">
           <button id="abpStart" label="开始(选图形)" size="large"
                   imageMso="SelectionPane" onAction="RibbonStart"
-                  superTip="选中图形后点它, 出现红十字"/>
+                  supertip="选中图形后点它, 出现红十字"/>
           <button id="abpTrace" label="开始描迹" size="large"
                   imageMso="InkPen" onAction="RibbonTrace"
-                  superTip="拖洋红十字沿曲线走, 松手自动记点"/>
+                  supertip="拖洋红十字沿曲线走, 松手自动记点"/>
           <button id="abpTracePt" label="记一点" size="large"
                   imageMso="AddToQuickAccessToolbar" onAction="RibbonTracePt"
-                  superTip="手动补记一个点"/>
+                  supertip="手动补记一个点"/>
           <button id="abpTraceDone" label="完成描迹" size="large"
                   imageMso="Accept" onAction="RibbonTraceDone"
-                  superTip="结束描迹并平滑点列"/>
+                  supertip="结束描迹并平滑点列"/>
           <button id="abpGen" label="生成路径动画" size="large"
                   imageMso="AnimationPane" onAction="RibbonGen"
-                  superTip="按标记生成动画"/>
+                  supertip="按标记生成动画"/>
         </group>
         <group id="abpGrpClean" label="维护">
           <button id="abpClean" label="清理标记" size="large"
                   imageMso="Clear" onAction="RibbonClean"
-                  superTip="删除所有辅助标记"/>
+                  supertip="删除所有辅助标记"/>
         </group>
       </tab>
     </tabs>

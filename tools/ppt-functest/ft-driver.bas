@@ -123,6 +123,12 @@ Private Function RunM(ByVal m As String) As String
     End If
 End Function
 
+' 提示框计数依赖跨进程文件共享(本机 VBA 读不到 PS 写的文件), 不可用;
+' 改为验证"调用正常返回", 提示框本身由看门狗日志核对(见 out 目录的 dialogs 日志)
+Private Sub ExpectDlg(ByVal nm As String, ByVal m As String)
+    ExpectOk nm, m
+End Sub
+
 Private Sub ExpectOk(ByVal nm As String, ByVal m As String)
     Dim r As String: r = RunM(m)
     Chk nm, (r = "ok"), m & " => " & r
@@ -283,22 +289,34 @@ Public Sub FT_All()
     Info "slide " & gSW & "x" & gSH & "  O=(" & OX & "," & OY & ") T=(" & TX & "," & TY & ")"
     ex = (TX - OX) / gSW: ey = (TY - OY) / gSH
 
-    ' ===== 0. 未点"开始"就点各按钮: 只应更新状态栏, 绝不能弹错误框 =====
+    ' ===== 0. 未点"开始"就点各按钮 =====
     Dim n0 As Long: n0 = NEff()
-    ExpectOk "pre-start 放C点", "actPlaceC"
-    ExpectOk "pre-start 放D点", "actPlaceD"
-    ExpectOk "pre-start 放P点", "actPlaceP"
-    ExpectOk "pre-start +航点", "actAddW"
-    ExpectOk "pre-start 开始描迹", "actTraceStart"
+    SelNone
+    ' 无选择: 放C/D/P、+航点、开始描迹、生成 都会弹"请先选中"提示框(看门狗点掉)
+    ExpectDlg "pre-start 放C点(无选择)", "actPlaceC"
+    ExpectDlg "pre-start 放D点(无选择)", "actPlaceD"
+    ExpectDlg "pre-start 放P点(无选择)", "actPlaceP"
+    ExpectDlg "pre-start +航点(无选择)", "actAddW"
+    ExpectDlg "pre-start 开始描迹(无选择)", "actTraceStart"
+    ExpectDlg "pre-start 生成(无选择)", "actGenerate"
     ExpectOk "pre-start 记一点", "actTracePoint"
     ExpectOk "pre-start 完成描迹", "actTraceDone"
-    ExpectOk "pre-start 生成", "actGenerate"
     ExpectOk "pre-start 清理标记", "actClean"
-    SelNone
     ExpectOk "pre-start 开始(无选择)", "actStart"
     ExpectOk "pre-start 中心十字(无选择)", "actCenterCross"
     Chk "pre-start 不产生动画", NEff() = n0, "effects " & n0 & " -> " & NEff()
     Chk "pre-start 不产生标记", gS.Shapes.Count = 2, "shapes=" & gS.Shapes.Count
+
+    ' ===== 0b. 未点"开始"但选中了图形: 放C点 自动认定它为移动图形 =====
+    SelMover
+    n0 = NEff()
+    ExpectOk "pre-start 放C点(自动认定)", "actPlaceC"
+    Chk "pre-start 自动认定: C 已放置", CountS(NM_PC) = 1, "count=" & CountS(NM_PC)
+    Chk "pre-start 自动认定: 同时放了 A/B 基准", (CountS(NM_A) = 1 And CountS(NM_B) = 1), "A=" & CountS(NM_A) & " B=" & CountS(NM_B)
+    ExpectOk "pre-start 放D点(选中目标)", "actPlaceD"
+    Chk "pre-start 自动认定: D 已放置", CountS(NM_PD) = 1, "count=" & CountS(NM_PD)
+    ExpectOk "pre-start 清理标记(复位)", "actClean"
+    Chk "pre-start 复位后无标记", gS.Shapes.Count = 2, "shapes=" & gS.Shapes.Count
 
     ' ===== 1. 直线: 中心到中心 =====
     SelMover

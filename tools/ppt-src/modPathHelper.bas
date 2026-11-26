@@ -186,6 +186,47 @@ Private Sub RequireMoverOK()
     End If
 End Sub
 
+' 需要用户先做一步时的提示: 面板底部一行小字很容易被当成"没反应", 所以同时弹窗
+Public Sub stAsk(msg As String)
+    On Error Resume Next
+    st msg
+    MsgBox msg, vbInformation, "路径助手"
+End Sub
+
+' 确保已有移动图形。返回 False 时由调用方提示。
+' allowAuto=True: 还没点过「开始」时, 若当前恰好选中了一个普通图形, 就直接以它为准
+' (新开一次 PowerPoint、或同时开着两份面板时, 用户常常直接点「放C点」)
+Private Function EnsureMover(ByVal allowAuto As Boolean) As Boolean
+    RequireMoverOK
+    If Not gMover Is Nothing Then EnsureMover = True: Exit Function
+    If allowAuto Then
+        On Error GoTo done
+        If ActiveWindow.Selection.Type <> ppSelectionShapes Then GoTo done
+        Dim sr As ShapeRange: Set sr = ActiveWindow.Selection.ShapeRange
+        If sr.Count <> 1 Then GoTo done
+        Dim sh As Shape: Set sh = TopLevel(sr(1))
+        If isMark(sh) Then GoTo done
+        Set gMover = sh
+        Set gSlide = sh.Parent
+        If gForm = "" Then gForm = "line"
+        CleanFlow gSlide
+        Dim c As Variant: c = CenterOf(sh)
+        AddCross gSlide, NM_A, c(0), c(1), 7, RGB(255, 0, 0)
+        If gForm = "line" Then AddCross gSlide, NM_B, c(0), c(1), 8, RGB(0, 112, 255)
+        EnsureMover = True
+        Exit Function
+done:
+    End If
+End Function
+
+' 标记都放在移动图形所在的那张幻灯片上; 若当前看的不是它, 先切过去, 免得"放了却看不见"
+Private Sub ShowMoverSlide()
+    On Error Resume Next
+    Dim v As Slide: Set v = ActiveWindow.View.Slide
+    If v Is Nothing Then Exit Sub
+    If v.SlideID <> gSlide.SlideID Then gSlide.Select
+End Sub
+
 ' 失败提示: 状态栏 + 弹窗(错误号+描述, 便于用户反馈精确定位)
 Public Sub stErr(msg As String)
     On Error Resume Next
@@ -327,8 +368,19 @@ End Sub
 
 Private Sub PlaceCommon(nm As String, ox As Single, oy As Single, rgbv As Long, tag As String)
     On Error GoTo eh
-    RequireMoverOK
-    If gMover Is Nothing Then st "请先点「开始」": Exit Sub
+    ' C/P 是放在移动图形上的: 没点过「开始」时, 选中的那个图形就是要移动的图形
+    ' D 是放在目标图形上的: 不能推断, 只能提示
+    Dim isD As Boolean: isD = (nm = NM_PD)
+    If Not EnsureMover(Not isD) Then
+        If isD Then
+            stAsk "还没有选定要移动的图形。" & vbCrLf & vbCrLf & _
+                  "请先选中它、点「开始(选图形)」," & vbCrLf & "再选中目标图形、点「放D点」。"
+        Else
+            stAsk "还没有选定要移动的图形。" & vbCrLf & vbCrLf & "请先选中它, 再点这个按钮。"
+        End If
+        Exit Sub
+    End If
+    ShowMoverSlide
     Dim c As Variant: c = CenterOf(gMover)
     Dim a As Variant: a = c
     Dim pc As Shape: Set pc = FindMark(gSlide, NM_PC)
@@ -353,8 +405,8 @@ End Sub
 
 Public Sub actAddW()
     On Error GoTo eh
-    RequireMoverOK
-    If gMover Is Nothing Then st "请先点「开始」": Exit Sub
+    If Not EnsureMover(False) Then stAsk "还没有选定要移动的图形。" & vbCrLf & vbCrLf & "请先选中它、点「开始(选图形)」。": Exit Sub
+    ShowMoverSlide
     Dim c As Variant: c = CenterOf(gMover)
     Dim a As Variant: a = c
     Dim pc As Shape: Set pc = FindMark(gSlide, NM_PC)
@@ -385,7 +437,7 @@ End Function
 
 Public Sub actClearW()
     On Error GoTo eh
-    If gSlide Is Nothing Then st "请先点「开始」": Exit Sub
+    If gSlide Is Nothing Then stAsk "还没有选定要移动的图形。" & vbCrLf & vbCrLf & "请先选中它、点「开始(选图形)」。": Exit Sub
     DeleteByPrefix gSlide, MK & "W"
     st "已清空航点"
     Exit Sub
@@ -398,8 +450,8 @@ End Sub
 
 Public Sub actTraceStart()
     On Error GoTo eh
-    RequireMoverOK
-    If gMover Is Nothing Then st "请先点「开始」选图形": Exit Sub
+    If Not EnsureMover(True) Then stAsk "还没有选定要移动的图形。" & vbCrLf & vbCrLf & "请先选中它、点「开始(选图形)」。": Exit Sub
+    ShowMoverSlide
     Dim c As Variant: c = CenterOf(gMover)
     Dim anchor As Variant: anchor = c
     Dim pc As Shape: Set pc = FindMark(gSlide, NM_PC)
@@ -538,8 +590,8 @@ End Sub
 Public Sub actGenerate()
     On Error GoTo eh
     StopTimer: gTraceOn = False   ' 生成前先停掉描迹轮询
-    RequireMoverOK
-    If gMover Is Nothing Then st "请先点「开始」": Exit Sub
+    If Not EnsureMover(True) Then stAsk "还没有选定要移动的图形。" & vbCrLf & vbCrLf & "请先选中它、点「开始(选图形)」。": Exit Sub
+    ShowMoverSlide
     Dim pres As Presentation: Set pres = ActivePresentation
     Dim sw As Single, shh As Single
     sw = pres.PageSetup.SlideWidth: shh = pres.PageSetup.SlideHeight

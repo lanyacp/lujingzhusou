@@ -286,3 +286,138 @@ Public Sub FT_Bang()
     W "after bang (should not be written)"
     Close #f
 End Sub
+
+' 显示面板并停留, 供外部截图 / 读取控件
+Public Sub FT_PanelHold()
+    OpenLog
+    On Error Resume Next
+    Application.Run ("ShowPanel")
+    W "shown"
+    Pause 16
+    W "hold end"
+    Close #f
+End Sub
+
+' 真人式操作复现: 外部脚本用鼠标点面板按钮, 本过程只负责布景/选图形/事后核对
+Public Sub FT_UiClick()
+    OpenLog
+    On Error Resume Next
+    Dim pres As Presentation: Set pres = ActivePresentation
+    Do While pres.Slides.Count > 0
+        pres.Slides(1).Delete
+    Loop
+    Dim s As Slide: Set s = pres.Slides.Add(1, ppLayoutBlank)
+    Dim mv As Shape, tg As Shape
+    Set mv = s.Shapes.AddShape(msoShapeRectangle, 100!, 100!, 120!, 80!)
+    mv.Name = "FT_mover"
+    Set tg = s.Shapes.AddShape(msoShapeOval, 500!, 300!, 100!, 100!)
+    tg.Name = "FT_target"
+    mv.Select
+    W "before: selType=" & ActiveWindow.Selection.Type
+    Application.Run "ShowPanel"
+    W "t0 panel shown; selType=" & ActiveWindow.Selection.Type
+    Pause 6                                   ' 期间外部点击: 开始(约2.8s) 放C点(约4.8s)
+    W "t6 after C: selType=" & ActiveWindow.Selection.Type & " shapes=" & s.Shapes.Count & _
+      " A=" & Cnt(s, "__pthlp_A__") & " B=" & Cnt(s, "__pthlp_B__") & " C=" & Cnt(s, "__pthlp_PC__") & " D=" & Cnt(s, "__pthlp_PD__")
+    tg.Select
+    W "t6 target selected: selType=" & ActiveWindow.Selection.Type
+    Pause 4                                   ' 期间外部点击: 放D点(约1.8s后)
+    W "t10 after D: shapes=" & s.Shapes.Count & " C=" & Cnt(s, "__pthlp_PC__") & " D=" & Cnt(s, "__pthlp_PD__")
+    Dim sh As Shape
+    For Each sh In s.Shapes
+        If Left$(sh.Name, 8) = "__pthlp_" Then W "   mark " & sh.Name & " at " & Round(sh.Left + sh.Width / 2, 1) & "," & Round(sh.Top + sh.Height / 2, 1)
+    Next sh
+    Pause 2
+    Close #f
+End Sub
+
+Private Function Cnt(ByVal s As Slide, ByVal nm As String) As Long
+    Dim i As Long
+    For i = 1 To s.Shapes.Count
+        If s.Shapes(i).Name = nm Then Cnt = Cnt + 1
+    Next i
+End Function
+
+' 复现"常驻版 + 免安装版同时加载": 驱动注入到 路径助手.pptm 自己的工程里
+Public Sub FT_ToolFlow()
+    OpenLog
+    On Error Resume Next
+    Dim pres As Presentation: Set pres = ActivePresentation
+    W "active pres=[" & pres.Name & "] slides=" & pres.Slides.Count & " myUserForms=" & UserForms.Count
+    Dim s As Slide: Set s = pres.Slides.Add(pres.Slides.Count + 1, ppLayoutBlank)
+    Dim mv As Shape, tg As Shape
+    Set mv = s.Shapes.AddShape(msoShapeRectangle, 100!, 100!, 120!, 80!)
+    mv.Name = "FT_mover"
+    Set tg = s.Shapes.AddShape(msoShapeOval, 500!, 300!, 100!, 100!)
+    tg.Name = "FT_target"
+    Dim v As Variant, e1 As Long
+    v = Empty
+    v = Application.Run("ShowPanel")            ' 封面按钮就是这个动作
+    e1 = Err.Number
+    W "after Run ShowPanel: err=" & e1 & " myUserForms=" & UserForms.Count
+    mv.Select
+    Pause 6                                      ' 外部点击: 开始, 放C点
+    W "t6 shapes=" & s.Shapes.Count & " A=" & Cnt(s, "__pthlp_A__") & " B=" & Cnt(s, "__pthlp_B__") & " C=" & Cnt(s, "__pthlp_PC__") & " D=" & Cnt(s, "__pthlp_PD__")
+    tg.Select
+    Pause 4                                      ' 外部点击: 放D点
+    W "t10 shapes=" & s.Shapes.Count & " C=" & Cnt(s, "__pthlp_PC__") & " D=" & Cnt(s, "__pthlp_PD__")
+    Pause 2
+    Close #f
+End Sub
+
+' 两份同时加载: 带选区状态记录
+Public Sub FT_ToolFlow2()
+    OpenLog
+    On Error Resume Next
+    Dim pres As Presentation: Set pres = ActivePresentation
+    W "active pres=[" & pres.Name & "] presWindows=" & pres.Windows.Count & " appWindows=" & Application.Windows.Count
+    Dim s As Slide: Set s = pres.Slides.Add(pres.Slides.Count + 1, ppLayoutBlank)
+    Dim mv As Shape, tg As Shape
+    Set mv = s.Shapes.AddShape(msoShapeRectangle, 100!, 100!, 120!, 80!)
+    mv.Name = "FT_mover"
+    Set tg = s.Shapes.AddShape(msoShapeOval, 500!, 300!, 100!, 100!)
+    tg.Name = "FT_target"
+    ActiveWindow.View.GotoSlide s.SlideIndex        ' 切到工作幻灯片(否则选不中)
+    Dim v As Variant
+    v = Application.Run("ShowPanel")
+    W "after Run ShowPanel err=" & Err.Number
+    mv.Select
+    W "after select: selType=" & ActiveWindow.Selection.Type & " count=" & ActiveWindow.Selection.ShapeRange.Count & " slideIdx=" & ActiveWindow.View.Slide.SlideIndex & " shapesOnSlide=" & s.Shapes.Count
+    Pause 6
+    W "t6 selType=" & ActiveWindow.Selection.Type & " slideIdx=" & ActiveWindow.View.Slide.SlideIndex & " A=" & Cnt(s, "__pthlp_A__") & " B=" & Cnt(s, "__pthlp_B__") & " C=" & Cnt(s, "__pthlp_PC__")
+    tg.Select
+    Pause 5
+    W "t11 selType=" & ActiveWindow.Selection.Type & " C=" & Cnt(s, "__pthlp_PC__") & " D=" & Cnt(s, "__pthlp_PD__")
+    Pause 2
+    Close #f
+End Sub
+
+' 用户场景回归: 新会话没点「开始」, 选中图形直接点「放C点」→ 自动认定
+Public Sub FT_AutoAdopt()
+    OpenLog
+    On Error Resume Next
+    Dim pres As Presentation: Set pres = ActivePresentation
+    Dim s As Slide: Set s = pres.Slides.Add(pres.Slides.Count + 1, ppLayoutBlank)
+    ActiveWindow.View.GotoSlide s.SlideIndex
+    Dim mv As Shape, tg As Shape
+    Set mv = s.Shapes.AddShape(msoShapeRectangle, 100!, 100!, 120!, 80!)
+    mv.Name = "FT_mover"
+    Set tg = s.Shapes.AddShape(msoShapeOval, 500!, 300!, 100!, 100!)
+    tg.Name = "FT_target"
+    Application.Run "ShowPanel"
+    Pause 1
+    mv.Select
+    W "selType=" & ActiveWindow.Selection.Type
+    Pause 8                                   ' 外部点击面板上的「放C点」
+    W "after UI 放C点: C=" & Cnt(s, "__pthlp_PC__") & " A=" & Cnt(s, "__pthlp_A__") & " B=" & Cnt(s, "__pthlp_B__")
+    tg.Select
+    On Error Resume Next
+    Application.Run "actPlaceD"               ' 宏路径放D(选中目标=自动落其中心)
+    W "after actPlaceD: D=" & Cnt(s, "__pthlp_PD__")
+    Dim sh As Shape
+    For Each sh In s.Shapes
+        If Left$(sh.Name, 8) = "__pthlp_" Then W "   mark " & sh.Name & " at " & Round(sh.Left + sh.Width / 2, 1) & "," & Round(sh.Top + sh.Height / 2, 1)
+    Next sh
+    Pause 2
+    Close #f
+End Sub

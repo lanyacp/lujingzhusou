@@ -1,4 +1,4 @@
-param([string]$Out = 'vbe-shot.png', [string]$Class = 'wndclass_desked_gsk', [string]$TitleRx = '')
+param([string]$Out = 'vbe-shot.png', [string]$Class = 'wndclass_desked_gsk', [string]$TitleRx = '', [switch]$NoMax)
 Add-Type -AssemblyName System.Drawing
 Add-Type -TypeDefinition @'
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -41,6 +41,7 @@ public static class Shot {
     RECT r; GetWindowRect(h, out r); return r;
   }
   public static RECT Rect(IntPtr h){ RECT r; GetWindowRect(h, out r); return r; }
+  public static void TopOnly(IntPtr h){ ShowWindow(h, 5); SetWindowPos(h, (IntPtr)(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0040); BringWindowToTop(h); }
 }
 '@
 [void][Shot]::SetProcessDPIAware()
@@ -51,7 +52,7 @@ else {
   $h = [Shot]::Find([uint32]$pp.Id, $Class, $TitleRx)
   if ($h -eq [IntPtr]::Zero) { Write-Host 'NOT-FOUND' }
   else {
-    $r = [Shot]::Place($h, 3)          # 最大化并置前
+    if ($NoMax) { [void][Shot]::TopOnly($h) } else { $r = [Shot]::Place($h, 3) }   # NoMax: keep natural size, just bring to front
     Start-Sleep -Milliseconds 1200
     $r = [Shot]::Rect($h)
     $w = $r.R - $r.L; $hh = $r.B - $r.T
